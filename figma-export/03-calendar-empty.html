@@ -1,0 +1,560 @@
+<!DOCTYPE html><html lang="zh-Hant"><head>
+    <script type="module">import { injectIntoGlobalHook } from "/Petal-Log/@react-refresh";
+injectIntoGlobalHook(window);
+window.$RefreshReg$ = () => {};
+window.$RefreshSig$ = () => (type) => type;</script>
+
+    <script type="module" src="/Petal-Log/@vite/client"></script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Petal Log</title>
+  <style type="text/css" data-vite-dev-id="D:/Vibe_Coding/Petal Log/Pental-Log/src/components/CalendarView/CalendarView.module.css">._calendar_1ji5r_1 {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-surface);
+  padding: var(--space-lg);
+}
+
+._header_1ji5r_8 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-md);
+}
+
+._monthTitle_1ji5r_15 {
+  font-size: var(--font-size-h1);
+  line-height: var(--line-height-heading);
+  font-weight: 600;
+}
+
+._navButton_1ji5r_21 {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-rose-100);
+  color: var(--color-rose-600);
+  font-size: 1.1rem;
+}
+
+._weekdayRow_1ji5r_31 {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: var(--space-sm);
+}
+
+._weekdayLabel_1ji5r_37 {
+  text-align: center;
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+}
+
+._grid_1ji5r_43 {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--space-xs);
+}
+
+._day_1ji5r_49 {
+  aspect-ratio: 1;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+}
+
+._dayOutside_1ji5r_58 {
+  color: var(--color-text-secondary);
+  opacity: 0.4;
+}
+
+._dayRecorded_1ji5r_63 {
+  background: var(--color-rose-300);
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+._dayPredicted_1ji5r_69 {
+  border: 2px dashed var(--color-lavender-500);
+  color: var(--color-lavender-500);
+  font-weight: 600;
+}
+
+._dayToday_1ji5r_75 {
+  box-shadow: inset 0 0 0 2px var(--color-rose-600);
+}
+</style><style type="text/css" data-vite-dev-id="D:/Vibe_Coding/Petal Log/Pental-Log/src/components/PredictionBanner/PredictionBanner.module.css">._banner_r2d51_1 {
+  display: flex;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-md);
+}
+
+._stat_r2d51_7 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-surface);
+  padding: var(--space-md) var(--space-lg);
+  flex: 1;
+}
+
+._value_r2d51_18 {
+  font-family: var(--font-family-numeric);
+  font-size: var(--font-size-display);
+  line-height: var(--line-height-display);
+  font-weight: 700;
+  color: var(--color-rose-600);
+}
+
+._label_r2d51_26 {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-xs);
+}
+</style><style type="text/css" data-vite-dev-id="D:/Vibe_Coding/Petal Log/Pental-Log/src/components/FlowPicker/FlowPicker.module.css">._group_s90yg_1 {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+._chip_s90yg_6 {
+  flex: 1;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-body);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+._chipActive_s90yg_17 {
+  background: var(--color-rose-600);
+  border-color: var(--color-rose-600);
+  color: #fff;
+}
+</style><style type="text/css" data-vite-dev-id="D:/Vibe_Coding/Petal Log/Pental-Log/src/components/QuickRecordModal/QuickRecordModal.module.css">._overlay_7onfh_1 {
+  position: fixed;
+  inset: 0;
+  background: rgba(69, 57, 54, 0.35);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 20;
+}
+
+._sheet_7onfh_11 {
+  width: 100%;
+  max-width: 480px;
+  background: var(--color-surface);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+._title_7onfh_22 {
+  font-size: var(--font-size-h1);
+  font-weight: 600;
+}
+
+._field_7onfh_27 {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+._fieldLabel_7onfh_33 {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+}
+
+._dateInput_7onfh_38 {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
+  font-size: var(--font-size-body);
+  font-family: var(--font-family-numeric);
+  color: var(--color-text-primary);
+  background: var(--color-bg);
+}
+
+._saveButton_7onfh_48 {
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-rose-600);
+  color: #fff;
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  padding: var(--space-sm) var(--space-lg);
+}
+</style><style type="text/css" data-vite-dev-id="D:/Vibe_Coding/Petal Log/Pental-Log/src/components/DayDetail/DayDetail.module.css">._overlay_yhxbq_1 {
+  position: fixed;
+  inset: 0;
+  background: rgba(69, 57, 54, 0.35);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 20;
+}
+
+._sheet_yhxbq_11 {
+  width: 100%;
+  max-width: 480px;
+  background: var(--color-surface);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+._title_yhxbq_22 {
+  font-size: var(--font-size-h1);
+  font-weight: 600;
+}
+
+._subLabel_yhxbq_27 {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+  margin-top: calc(var(--space-xs) * -1);
+}
+
+._dayOfPeriod_yhxbq_33 {
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  color: var(--color-rose-600);
+  margin-top: calc(var(--space-xs) * -1);
+}
+
+._field_yhxbq_40 {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+._fieldLabel_yhxbq_46 {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+}
+
+._actions_yhxbq_51 {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+._saveButton_yhxbq_56 {
+  flex: 1;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-rose-600);
+  color: #fff;
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  padding: var(--space-sm) var(--space-lg);
+}
+
+._deleteButton_yhxbq_67 {
+  flex: 1;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-body);
+  padding: var(--space-sm) var(--space-lg);
+}
+</style><style type="text/css" data-vite-dev-id="D:/Vibe_Coding/Petal Log/Pental-Log/src/components/EmptyStateOnboarding/EmptyStateOnboarding.module.css">._container_1x3f9_1 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  background: var(--color-rose-100);
+  border-radius: var(--radius-md);
+  padding: var(--space-xl) var(--space-lg);
+  margin-bottom: var(--space-md);
+  text-align: center;
+}
+
+._message_1x3f9_13 {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-body);
+}
+
+._cta_1x3f9_18 {
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-rose-600);
+  color: #fff;
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  padding: var(--space-sm) var(--space-lg);
+}
+</style><style type="text/css" data-vite-dev-id="D:/Vibe_Coding/Petal Log/Pental-Log/src/components/SettingsPanel/SettingsPanel.module.css">._overlay_1tzuv_1 {
+  position: fixed;
+  inset: 0;
+  background: rgba(69, 57, 54, 0.35);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 20;
+}
+
+._sheet_1tzuv_11 {
+  width: 100%;
+  max-width: 480px;
+  background: var(--color-surface);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+._title_1tzuv_22 {
+  font-size: var(--font-size-h1);
+  font-weight: 600;
+}
+
+._field_1tzuv_27 {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+._fieldLabel_1tzuv_33 {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+}
+
+._numberInput_1tzuv_38 {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
+  font-size: var(--font-size-body);
+  font-family: var(--font-family-numeric);
+  color: var(--color-text-primary);
+  background: var(--color-bg);
+}
+
+._row_1tzuv_48 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+}
+
+._dangerButton_1tzuv_56 {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-rose-600);
+  font-size: var(--font-size-caption);
+  padding: var(--space-sm) var(--space-lg);
+}
+</style><style type="text/css" data-vite-dev-id="D:/Vibe_Coding/Petal Log/Pental-Log/src/components/OnboardingFlow/OnboardingFlow.module.css">._container_ewzen_1 {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-surface);
+  padding: var(--space-xl) var(--space-lg);
+  margin-top: var(--space-xl);
+}
+
+._title_ewzen_12 {
+  font-size: var(--font-size-h1);
+  font-weight: 700;
+  color: var(--color-rose-600);
+  text-align: center;
+}
+
+._message_ewzen_19 {
+  font-size: var(--font-size-body);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+._actions_ewzen_25 {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+._field_ewzen_32 {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+._fieldLabel_ewzen_38 {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+}
+
+._numberInput_ewzen_43 {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
+  font-size: var(--font-size-body);
+  font-family: var(--font-family-numeric);
+  color: var(--color-text-primary);
+  background: var(--color-bg);
+}
+
+._primaryButton_ewzen_53 {
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-rose-600);
+  color: #fff;
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  padding: var(--space-sm) var(--space-lg);
+}
+
+._secondaryButton_ewzen_63 {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-body);
+  padding: var(--space-sm) var(--space-lg);
+}
+</style><style type="text/css" data-vite-dev-id="D:/Vibe_Coding/Petal Log/Pental-Log/src/App.module.css">._app_1l76w_1 {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: var(--space-lg) var(--space-md) 96px;
+  position: relative;
+  min-height: 100vh;
+}
+
+._header_1l76w_9 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-lg);
+}
+
+._logo_1l76w_16 {
+  font-size: var(--font-size-h1);
+  font-weight: 700;
+  color: var(--color-rose-600);
+}
+
+._settingsButton_1l76w_22 {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-surface);
+  color: var(--color-text-secondary);
+  font-size: 1.1rem;
+}
+
+._fab_1l76w_33 {
+  position: fixed;
+  bottom: var(--space-lg);
+  left: 50%;
+  transform: translateX(-50%);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-rose-600);
+  color: #fff;
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  padding: var(--space-md) var(--space-xl);
+  box-shadow: var(--shadow-surface);
+}
+</style><style type="text/css" data-vite-dev-id="D:/Vibe_Coding/Petal Log/Pental-Log/src/styles/global.css">:root {
+  /* Rose — 主色，經期日 */
+  --color-rose-600: #b5645c;
+  --color-rose-300: #efc9c3;
+  --color-rose-100: #fbeae7;
+
+  /* Lavender — 輔色，預測日 */
+  --color-lavender-500: #9b8ac4;
+  --color-lavender-100: #ebe6f5;
+
+  /* Neutrals */
+  --color-bg: #fbf6f3;
+  --color-surface: #ffffff;
+  --color-border: #eae1dd;
+  --color-text-primary: #453936;
+  --color-text-secondary: #8a7d79;
+
+  /* Typography scale */
+  --font-family-base: 'Noto Sans TC', 'PingFang TC', system-ui, sans-serif;
+  --font-family-numeric: 'Inter', 'Noto Sans TC', system-ui, sans-serif;
+
+  --font-size-display: 2.5rem;
+  --font-size-h1: 1.75rem;
+  --font-size-h2: 1.25rem;
+  --font-size-body: 1rem;
+  --font-size-caption: 0.8125rem;
+  --font-size-micro: 0.6875rem;
+
+  --line-height-display: 1.1;
+  --line-height-heading: 1.2;
+  --line-height-body: 1.5;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-pill: 999px;
+
+  --shadow-surface: 0 4px 16px rgba(69, 57, 54, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+</style><style>._calendar_1ji5r_1{background:var(--color-surface);border-radius:var(--radius-md);box-shadow:var(--shadow-surface);padding:var(--space-lg)}._header_1ji5r_8{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-md)}._monthTitle_1ji5r_15{font-size:var(--font-size-h1);line-height:var(--line-height-heading);font-weight:600}._navButton_1ji5r_21{width:36px;height:36px;border-radius:50%;border:none;background:var(--color-rose-100);color:var(--color-rose-600);font-size:1.1rem}._weekdayRow_1ji5r_31{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:var(--space-sm)}._weekdayLabel_1ji5r_37{text-align:center;font-size:var(--font-size-micro);color:var(--color-text-secondary)}._grid_1ji5r_43{display:grid;grid-template-columns:repeat(7,1fr);gap:var(--space-xs)}._day_1ji5r_49{aspect-ratio:1;border:none;background:transparent;border-radius:50%;font-size:var(--font-size-body);color:var(--color-text-primary)}._dayOutside_1ji5r_58{color:var(--color-text-secondary);opacity:.4}._dayRecorded_1ji5r_63{background:var(--color-rose-300);color:var(--color-text-primary);font-weight:600}._dayPredicted_1ji5r_69{border:2px dashed var(--color-lavender-500);color:var(--color-lavender-500);font-weight:600}._dayToday_1ji5r_75{box-shadow:inset 0 0 0 2px var(--color-rose-600)}._banner_r2d51_1{display:flex;gap:var(--space-lg);margin-bottom:var(--space-md)}._stat_r2d51_7{display:flex;flex-direction:column;align-items:center;background:var(--color-surface);border-radius:var(--radius-md);box-shadow:var(--shadow-surface);padding:var(--space-md) var(--space-lg);flex:1}._value_r2d51_18{font-family:var(--font-family-numeric);font-size:var(--font-size-display);line-height:var(--line-height-display);font-weight:700;color:var(--color-rose-600)}._label_r2d51_26{font-size:var(--font-size-caption);color:var(--color-text-secondary);margin-top:var(--space-xs)}._group_s90yg_1{display:flex;gap:var(--space-sm)}._chip_s90yg_6{flex:1;padding:var(--space-sm) var(--space-md);border-radius:var(--radius-pill);border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text-secondary);font-size:var(--font-size-body);transition:background .15s ease,color .15s ease,border-color .15s ease}._chipActive_s90yg_17{background:var(--color-rose-600);border-color:var(--color-rose-600);color:#fff}._overlay_7onfh_1{position:fixed;top:0;right:0;bottom:0;left:0;background:#45393659;display:flex;align-items:flex-end;justify-content:center;z-index:20}._sheet_7onfh_11{width:100%;max-width:480px;background:var(--color-surface);border-radius:var(--radius-md) var(--radius-md) 0 0;padding:var(--space-lg);display:flex;flex-direction:column;gap:var(--space-md)}._title_7onfh_22{font-size:var(--font-size-h1);font-weight:600}._field_7onfh_27{display:flex;flex-direction:column;gap:var(--space-sm)}._fieldLabel_7onfh_33{font-size:var(--font-size-caption);color:var(--color-text-secondary)}._dateInput_7onfh_38{border:1px solid var(--color-border);border-radius:var(--radius-sm);padding:var(--space-sm);font-size:var(--font-size-body);font-family:var(--font-family-numeric);color:var(--color-text-primary);background:var(--color-bg)}._saveButton_7onfh_48{border:none;border-radius:var(--radius-pill);background:var(--color-rose-600);color:#fff;font-size:var(--font-size-body);font-weight:600;padding:var(--space-sm) var(--space-lg)}._overlay_yhxbq_1{position:fixed;top:0;right:0;bottom:0;left:0;background:#45393659;display:flex;align-items:flex-end;justify-content:center;z-index:20}._sheet_yhxbq_11{width:100%;max-width:480px;background:var(--color-surface);border-radius:var(--radius-md) var(--radius-md) 0 0;padding:var(--space-lg);display:flex;flex-direction:column;gap:var(--space-md)}._title_yhxbq_22{font-size:var(--font-size-h1);font-weight:600}._subLabel_yhxbq_27{font-size:var(--font-size-caption);color:var(--color-text-secondary);margin-top:calc(var(--space-xs) * -1)}._dayOfPeriod_yhxbq_33{font-size:var(--font-size-body);font-weight:600;color:var(--color-rose-600);margin-top:calc(var(--space-xs) * -1)}._field_yhxbq_40{display:flex;flex-direction:column;gap:var(--space-sm)}._fieldLabel_yhxbq_46{font-size:var(--font-size-caption);color:var(--color-text-secondary)}._actions_yhxbq_51{display:flex;gap:var(--space-sm)}._saveButton_yhxbq_56{flex:1;border:none;border-radius:var(--radius-pill);background:var(--color-rose-600);color:#fff;font-size:var(--font-size-body);font-weight:600;padding:var(--space-sm) var(--space-lg)}._deleteButton_yhxbq_67{flex:1;border:1px solid var(--color-border);border-radius:var(--radius-pill);background:transparent;color:var(--color-text-secondary);font-size:var(--font-size-body);padding:var(--space-sm) var(--space-lg)}._container_1x3f9_1{display:flex;flex-direction:column;align-items:center;gap:var(--space-md);background:var(--color-rose-100);border-radius:var(--radius-md);padding:var(--space-xl) var(--space-lg);margin-bottom:var(--space-md);text-align:center}._message_1x3f9_13{color:var(--color-text-secondary);font-size:var(--font-size-body)}._cta_1x3f9_18{border:none;border-radius:var(--radius-pill);background:var(--color-rose-600);color:#fff;font-size:var(--font-size-body);font-weight:600;padding:var(--space-sm) var(--space-lg)}._overlay_1tzuv_1{position:fixed;top:0;right:0;bottom:0;left:0;background:#45393659;display:flex;align-items:flex-end;justify-content:center;z-index:20}._sheet_1tzuv_11{width:100%;max-width:480px;background:var(--color-surface);border-radius:var(--radius-md) var(--radius-md) 0 0;padding:var(--space-lg);display:flex;flex-direction:column;gap:var(--space-md)}._title_1tzuv_22{font-size:var(--font-size-h1);font-weight:600}._field_1tzuv_27{display:flex;flex-direction:column;gap:var(--space-sm)}._fieldLabel_1tzuv_33{font-size:var(--font-size-caption);color:var(--color-text-secondary)}._numberInput_1tzuv_38{border:1px solid var(--color-border);border-radius:var(--radius-sm);padding:var(--space-sm);font-size:var(--font-size-body);font-family:var(--font-family-numeric);color:var(--color-text-primary);background:var(--color-bg)}._row_1tzuv_48{display:flex;align-items:center;justify-content:space-between;font-size:var(--font-size-body);color:var(--color-text-primary)}._dangerButton_1tzuv_56{border:1px solid var(--color-border);border-radius:var(--radius-pill);background:transparent;color:var(--color-rose-600);font-size:var(--font-size-caption);padding:var(--space-sm) var(--space-lg)}._container_ewzen_1{display:flex;flex-direction:column;gap:var(--space-md);background:var(--color-surface);border-radius:var(--radius-md);box-shadow:var(--shadow-surface);padding:var(--space-xl) var(--space-lg);margin-top:var(--space-xl)}._title_ewzen_12{font-size:var(--font-size-h1);font-weight:700;color:var(--color-rose-600);text-align:center}._message_ewzen_19{font-size:var(--font-size-body);color:var(--color-text-secondary);text-align:center}._actions_ewzen_25{display:flex;flex-direction:column;gap:var(--space-sm);margin-top:var(--space-sm)}._field_ewzen_32{display:flex;flex-direction:column;gap:var(--space-sm)}._fieldLabel_ewzen_38{font-size:var(--font-size-caption);color:var(--color-text-secondary)}._numberInput_ewzen_43{border:1px solid var(--color-border);border-radius:var(--radius-sm);padding:var(--space-sm);font-size:var(--font-size-body);font-family:var(--font-family-numeric);color:var(--color-text-primary);background:var(--color-bg)}._primaryButton_ewzen_53{border:none;border-radius:var(--radius-pill);background:var(--color-rose-600);color:#fff;font-size:var(--font-size-body);font-weight:600;padding:var(--space-sm) var(--space-lg)}._secondaryButton_ewzen_63{border:1px solid var(--color-border);border-radius:var(--radius-pill);background:transparent;color:var(--color-text-secondary);font-size:var(--font-size-body);padding:var(--space-sm) var(--space-lg)}._app_1l76w_1{max-width:480px;margin:0 auto;padding:var(--space-lg) var(--space-md) 96px;position:relative;min-height:100vh}._header_1l76w_9{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-lg)}._logo_1l76w_16{font-size:var(--font-size-h1);font-weight:700;color:var(--color-rose-600)}._settingsButton_1l76w_22{width:36px;height:36px;border-radius:50%;border:none;background:var(--color-surface);box-shadow:var(--shadow-surface);color:var(--color-text-secondary);font-size:1.1rem}._fab_1l76w_33{position:fixed;bottom:var(--space-lg);left:50%;transform:translate(-50%);border:none;border-radius:var(--radius-pill);background:var(--color-rose-600);color:#fff;font-size:var(--font-size-body);font-weight:600;padding:var(--space-md) var(--space-xl);box-shadow:var(--shadow-surface)}:root{--color-rose-600: #b5645c;--color-rose-300: #efc9c3;--color-rose-100: #fbeae7;--color-lavender-500: #9b8ac4;--color-lavender-100: #ebe6f5;--color-bg: #fbf6f3;--color-surface: #ffffff;--color-border: #eae1dd;--color-text-primary: #453936;--color-text-secondary: #8a7d79;--font-family-base: "Noto Sans TC", "PingFang TC", system-ui, sans-serif;--font-family-numeric: "Inter", "Noto Sans TC", system-ui, sans-serif;--font-size-display: 2.5rem;--font-size-h1: 1.75rem;--font-size-h2: 1.25rem;--font-size-body: 1rem;--font-size-caption: .8125rem;--font-size-micro: .6875rem;--line-height-display: 1.1;--line-height-heading: 1.2;--line-height-body: 1.5;--space-xs: 4px;--space-sm: 8px;--space-md: 16px;--space-lg: 24px;--space-xl: 32px;--radius-sm: 8px;--radius-md: 16px;--radius-pill: 999px;--shadow-surface: 0 4px 16px rgba(69, 57, 54, .08)}*{box-sizing:border-box}html,body,#root{height:100%}body{margin:0;background:var(--color-bg);color:var(--color-text-primary);font-family:var(--font-family-base);font-size:var(--font-size-body);line-height:var(--line-height-body);-webkit-font-smoothing:antialiased}button{font-family:inherit;cursor:pointer}h1,h2,p{margin:0}
+</style></head>
+  <body>
+    <div id="root"><div class="_app_1l76w_1"><header class="_header_1l76w_9"><h1 class="_logo_1l76w_16">Petal Log</h1><button type="button" class="_settingsButton_1l76w_22" aria-label="設定">⚙</button></header><div class="_container_1x3f9_1"><p class="_message_1x3f9_13">還沒有任何紀錄，從今天開始吧</p><button type="button" class="_cta_1x3f9_18">開始第一筆記錄</button></div><div class="_calendar_1ji5r_1"><div class="_header_1ji5r_8"><button type="button" class="_navButton_1ji5r_21" aria-label="上個月">‹</button><h1 class="_monthTitle_1ji5r_15">2026年 7月</h1><button type="button" class="_navButton_1ji5r_21" aria-label="下個月">›</button></div><div class="_weekdayRow_1ji5r_31"><span class="_weekdayLabel_1ji5r_37">日</span><span class="_weekdayLabel_1ji5r_37">一</span><span class="_weekdayLabel_1ji5r_37">二</span><span class="_weekdayLabel_1ji5r_37">三</span><span class="_weekdayLabel_1ji5r_37">四</span><span class="_weekdayLabel_1ji5r_37">五</span><span class="_weekdayLabel_1ji5r_37">六</span></div><div class="_grid_1ji5r_43"><button type="button" class="_day_1ji5r_49 _dayOutside_1ji5r_58">28</button><button type="button" class="_day_1ji5r_49 _dayOutside_1ji5r_58">29</button><button type="button" class="_day_1ji5r_49 _dayOutside_1ji5r_58">30</button><button type="button" class="_day_1ji5r_49">1</button><button type="button" class="_day_1ji5r_49">2</button><button type="button" class="_day_1ji5r_49">3</button><button type="button" class="_day_1ji5r_49">4</button><button type="button" class="_day_1ji5r_49">5</button><button type="button" class="_day_1ji5r_49 _dayToday_1ji5r_75">6</button><button type="button" class="_day_1ji5r_49">7</button><button type="button" class="_day_1ji5r_49">8</button><button type="button" class="_day_1ji5r_49">9</button><button type="button" class="_day_1ji5r_49">10</button><button type="button" class="_day_1ji5r_49">11</button><button type="button" class="_day_1ji5r_49">12</button><button type="button" class="_day_1ji5r_49">13</button><button type="button" class="_day_1ji5r_49">14</button><button type="button" class="_day_1ji5r_49">15</button><button type="button" class="_day_1ji5r_49">16</button><button type="button" class="_day_1ji5r_49">17</button><button type="button" class="_day_1ji5r_49">18</button><button type="button" class="_day_1ji5r_49">19</button><button type="button" class="_day_1ji5r_49">20</button><button type="button" class="_day_1ji5r_49">21</button><button type="button" class="_day_1ji5r_49">22</button><button type="button" class="_day_1ji5r_49">23</button><button type="button" class="_day_1ji5r_49">24</button><button type="button" class="_day_1ji5r_49">25</button><button type="button" class="_day_1ji5r_49">26</button><button type="button" class="_day_1ji5r_49">27</button><button type="button" class="_day_1ji5r_49">28</button><button type="button" class="_day_1ji5r_49">29</button><button type="button" class="_day_1ji5r_49">30</button><button type="button" class="_day_1ji5r_49">31</button><button type="button" class="_day_1ji5r_49 _dayOutside_1ji5r_58">1</button></div></div><button type="button" class="_fab_1l76w_33">+ 記錄</button></div></div>
+    <script type="module" src="/Petal-Log/src/main.jsx"></script>
+  
+
+</body></html>
