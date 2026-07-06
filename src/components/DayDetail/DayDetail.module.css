@@ -30,6 +30,13 @@
   margin-top: calc(var(--space-xs) * -1);
 }
 
+.dayOfPeriod {
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  color: var(--color-rose-600);
+  margin-top: calc(var(--space-xs) * -1);
+}
+
 .field {
   display: flex;
   flex-direction: column;

@@ -3,7 +3,7 @@ import { format, parseISO } from 'date-fns'
 import { FlowPicker } from '../FlowPicker/FlowPicker'
 import styles from './DayDetail.module.css'
 
-export function DayDetail({ date, record, onClose, onSave, onDelete, label = '記錄' }) {
+export function DayDetail({ date, record, dayOfPeriod, onClose, onSave, onDelete, label = '記錄' }) {
   const [flow, setFlow] = useState(record ? record.flow : 'medium')
 
   if (!date) return null
@@ -14,7 +14,11 @@ export function DayDetail({ date, record, onClose, onSave, onDelete, label = '�
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.sheet} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         <h2 className={styles.title}>{displayDate}</h2>
-        <p className={styles.subLabel}>{label}</p>
+        {dayOfPeriod ? (
+          <p className={styles.dayOfPeriod}>經期第 {dayOfPeriod} 天</p>
+        ) : (
+          <p className={styles.subLabel}>{label}</p>
+        )}
 
         <div className={styles.field}>
           <span className={styles.fieldLabel}>經量</span>

@@ -17,6 +17,20 @@ function groupIntoCycles(sortedDates) {
   return cycles
 }
 
+export function getDayOfPeriod(records, date) {
+  const sortedDates = [...new Set(records.map((r) => r.date))].sort()
+  if (!sortedDates.includes(date)) return null
+
+  const cycles = groupIntoCycles(sortedDates)
+  const cycle = cycles.find((c) => {
+    const diff = differenceInCalendarDays(parseISO(date), parseISO(c.startDate))
+    return diff >= 0 && diff < c.length
+  })
+  if (!cycle) return null
+
+  return differenceInCalendarDays(parseISO(date), parseISO(cycle.startDate)) + 1
+}
+
 export function getCyclePrediction(records, settings, today = new Date()) {
   if (!records.length) {
     return {

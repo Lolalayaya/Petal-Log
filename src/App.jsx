@@ -7,6 +7,7 @@ import { DayDetail } from './components/DayDetail/DayDetail'
 import { EmptyStateOnboarding } from './components/EmptyStateOnboarding/EmptyStateOnboarding'
 import { SettingsPanel } from './components/SettingsPanel/SettingsPanel'
 import { OnboardingFlow } from './components/OnboardingFlow/OnboardingFlow'
+import { getDayOfPeriod } from './utils/cyclePrediction'
 import styles from './App.module.css'
 
 export default function App() {
@@ -83,6 +84,7 @@ export default function App() {
         key={selectedDate}
         date={selectedDate}
         record={selectedDate ? recordByDate.get(selectedDate) : null}
+        dayOfPeriod={selectedDate ? getDayOfPeriod(records, selectedDate) : null}
         onClose={() => setSelectedDate(null)}
         onSave={recordDay}
         onDelete={removeRecord}
