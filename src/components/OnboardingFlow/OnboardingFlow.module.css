@@ -1,0 +1,70 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-surface);
+  padding: var(--space-xl) var(--space-lg);
+  margin-top: var(--space-xl);
+}
+
+.title {
+  font-size: var(--font-size-h1);
+  font-weight: 700;
+  color: var(--color-rose-600);
+  text-align: center;
+}
+
+.message {
+  font-size: var(--font-size-body);
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.fieldLabel {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+}
+
+.numberInput {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
+  font-size: var(--font-size-body);
+  font-family: var(--font-family-numeric);
+  color: var(--color-text-primary);
+  background: var(--color-bg);
+}
+
+.primaryButton {
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-rose-600);
+  color: #fff;
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  padding: var(--space-sm) var(--space-lg);
+}
+
+.secondaryButton {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-body);
+  padding: var(--space-sm) var(--space-lg);
+}

@@ -1,0 +1,46 @@
+.app {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: var(--space-lg) var(--space-md) 96px;
+  position: relative;
+  min-height: 100vh;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-lg);
+}
+
+.logo {
+  font-size: var(--font-size-h1);
+  font-weight: 700;
+  color: var(--color-rose-600);
+}
+
+.settingsButton {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-surface);
+  color: var(--color-text-secondary);
+  font-size: 1.1rem;
+}
+
+.fab {
+  position: fixed;
+  bottom: var(--space-lg);
+  left: 50%;
+  transform: translateX(-50%);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-rose-600);
+  color: #fff;
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  padding: var(--space-md) var(--space-xl);
+  box-shadow: var(--shadow-surface);
+}

@@ -1,0 +1,46 @@
+:root {
+  /* Rose — 主色，經期日 */
+  --color-rose-600: #b5645c;
+  --color-rose-300: #efc9c3;
+  --color-rose-100: #fbeae7;
+
+  /* Lavender — 輔色，預測日 */
+  --color-lavender-500: #9b8ac4;
+  --color-lavender-100: #ebe6f5;
+
+  /* Neutrals */
+  --color-bg: #fbf6f3;
+  --color-surface: #ffffff;
+  --color-border: #eae1dd;
+  --color-text-primary: #453936;
+  --color-text-secondary: #8a7d79;
+
+  /* Typography scale */
+  --font-family-base: 'Noto Sans TC', 'PingFang TC', system-ui, sans-serif;
+  --font-family-numeric: 'Inter', 'Noto Sans TC', system-ui, sans-serif;
+
+  --font-size-display: 2.5rem;
+  --font-size-h1: 1.75rem;
+  --font-size-h2: 1.25rem;
+  --font-size-body: 1rem;
+  --font-size-caption: 0.8125rem;
+  --font-size-micro: 0.6875rem;
+
+  --line-height-display: 1.1;
+  --line-height-heading: 1.2;
+  --line-height-body: 1.5;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-pill: 999px;
+
+  --shadow-surface: 0 4px 16px rgba(69, 57, 54, 0.08);
+}

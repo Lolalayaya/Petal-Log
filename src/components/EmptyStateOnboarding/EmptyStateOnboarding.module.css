@@ -1,0 +1,26 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  background: var(--color-rose-100);
+  border-radius: var(--radius-md);
+  padding: var(--space-xl) var(--space-lg);
+  margin-bottom: var(--space-md);
+  text-align: center;
+}
+
+.message {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-body);
+}
+
+.cta {
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-rose-600);
+  color: #fff;
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  padding: var(--space-sm) var(--space-lg);
+}

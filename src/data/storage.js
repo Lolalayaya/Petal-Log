@@ -1,0 +1,69 @@
+const RECORDS_KEY = 'petal-log:records'
+const SETTINGS_KEY = 'petal-log:settings'
+
+const DEFAULT_SETTINGS = {
+  neutralLanguage: true,
+  avgPeriodLength: 5,
+  avgCycleLength: 30,
+  autoFillSubsequentDays: true,
+  onboardingCompleted: false,
+}
+
+function read(key, fallback) {
+  const raw = localStorage.getItem(key)
+  if (!raw) return fallback
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return fallback
+  }
+}
+
+function write(key, value) {
+  localStorage.setItem(key, JSON.stringify(value))
+}
+
+export function getRecords() {
+  return read(RECORDS_KEY, [])
+}
+
+export function addRecord(record) {
+  const records = getRecords().filter((r) => r.date !== record.date)
+  const next = [...records, record].sort((a, b) => a.date.localeCompare(b.date))
+  write(RECORDS_KEY, next)
+  return next
+}
+
+export function addRecords(newRecords) {
+  const newDates = new Set(newRecords.map((r) => r.date))
+  const records = getRecords().filter((r) => !newDates.has(r.date))
+  const next = [...records, ...newRecords].sort((a, b) => a.date.localeCompare(b.date))
+  write(RECORDS_KEY, next)
+  return next
+}
+
+export function updateRecord(id, patch) {
+  const next = getRecords().map((r) => (r.id === id ? { ...r, ...patch } : r))
+  write(RECORDS_KEY, next)
+  return next
+}
+
+export function deleteRecord(id) {
+  const next = getRecords().filter((r) => r.id !== id)
+  write(RECORDS_KEY, next)
+  return next
+}
+
+export function getSettings() {
+  return read(SETTINGS_KEY, DEFAULT_SETTINGS)
+}
+
+export function saveSettings(settings) {
+  write(SETTINGS_KEY, settings)
+  return settings
+}
+
+export function clearAllData() {
+  localStorage.removeItem(RECORDS_KEY)
+  localStorage.removeItem(SETTINGS_KEY)
+}
