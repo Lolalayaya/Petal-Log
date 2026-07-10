@@ -1,0 +1,366 @@
+# Petal Log 軟體設計文件（Software Design Document）
+
+| 項目 | 內容 |
+|---|---|
+| 專案名稱 | Petal Log |
+| 文件版本 | v1.0 |
+| 最後更新 | 2026-07-10 |
+| 狀態 | 現行版本（對應已實作功能） |
+
+---
+
+## 1. 專案概述
+
+Petal Log 是一款以隱私為優先設計的經期記錄網頁應用（Web App）。使用者可以快速記錄每日經量、在日曆上檢視歷史紀錄，並依據過去週期自動預測下一次經期的開始日與目前所在的週期天數。
+
+**核心定位**
+
+- **輕量、免帳號、免安裝**：開啟網頁即可使用，無需註冊。
+- **資料留在本機**：所有紀錄僅存於瀏覽器 `localStorage`，不上傳任何伺服器。
+- **中性化設計**：提供「中性文字」選項，讓介面文案（如「記錄」取代「經期記錄」）在他人瞥見螢幕時降低隱私暴露風險。
+- **低操作成本**：從開啟 App 到完成一筆記錄，最少只需兩次點擊（FAB → 選經量 → 儲存）。
+
+---
+
+## 2. 目標與非目標
+
+### 2.1 目標
+
+1. 讓使用者在 10 秒內完成一筆經期記錄。
+2. 提供「目前週期第幾天」與「預計下次日期」兩項核心預測資訊。
+3. 完整支援紀錄的新增、檢視、修改、刪除（CRUD）。
+4. 首次使用時透過 Onboarding 蒐集歷史週期資訊，加速預測準確度收斂。
+5. 純前端、零後端依賴，可靜態託管於 GitHub Pages。
+
+### 2.2 非目標（現階段不處理）
+
+- 不做多使用者帳號系統與登入機制。
+- 不做跨裝置資料同步（見第 14 章未來規劃）。
+- 不記錄經量以外的健康資訊（症狀、心情、體溫等）。
+- 不做原生 App（iOS / Android）封裝。
+
+---
+
+## 3. 系統架構
+
+Petal Log 是一個純前端單頁應用（SPA），沒有後端服務。所有狀態管理與資料持久化都在瀏覽器內完成。
+
+```mermaid
+flowchart TB
+    subgraph Browser["瀏覽器（Client）"]
+        UI["React 元件層\n(App / CalendarView / QuickRecordModal ...)"]
+        Hook["usePeriodData\n(狀態層 + 領域邏輯進入點)"]
+        Domain["cyclePrediction.js\n(週期預測演算法，純函式)"]
+        Storage["storage.js\n(持久化層)"]
+        LS[("localStorage\npetal-log:records\npetal-log:settings")]
+
+        UI --> Hook
+        Hook --> Domain
+        Hook --> Storage
+        Storage --> LS
+    end
+
+    Dev["開發者 push main"] --> GHA["GitHub Actions\n(deploy.yml)"]
+    GHA -->|"npm ci && npm run build"| Dist["dist/ 靜態檔"]
+    Dist --> Pages["GitHub Pages"]
+    Pages --> Browser
+```
+
+**架構特點**
+
+- **單向資料流**：UI 觸發事件 → `usePeriodData` 呼叫 `storage.js` 寫入 → 更新 React state → UI 重新渲染。元件不直接操作 `localStorage`。
+- **領域邏輯與 UI 解耦**：`cyclePrediction.js` 是不依賴 React、不做 I/O 的純函式模組，方便未來單獨測試或替換演算法。
+- **無全域狀態管理庫**：目前規模下用單一 Hook（`usePeriodData`）搭配 `useState`/`useMemo`/`useCallback` 已足夠，避免引入 Redux/Zustand 等額外複雜度。
+
+---
+
+## 4. 技術棧
+
+| 分類 | 選用 | 版本 |
+|---|---|---|
+| UI 框架 | React | ^18.3.1 |
+| 建構工具 | Vite | ^5.4.11 |
+| 日期處理 | date-fns | ^4.1.0 |
+| 樣式方案 | CSS Modules（`*.module.css`） | — |
+| 部署 | GitHub Actions + GitHub Pages | — |
+| 資料儲存 | 瀏覽器 `localStorage` | — |
+
+選型原則：所有依賴都刻意精簡（僅 3 個 runtime 套件），符合「輕量、免安裝、快速載入」的產品定位。
+
+---
+
+## 5. 目錄結構
+
+```
+Pental-Log/
+├── .github/workflows/deploy.yml   # CI/CD：build 後部署到 GitHub Pages
+├── figma-export/                  # 設計稿匯出的靜態 HTML（UI 流程參考稿，非執行程式碼）
+├── src/
+│   ├── main.jsx                   # 進入點
+│   ├── App.jsx                    # 根元件，畫面組裝與路由狀態（onboarding / 主畫面）
+│   ├── data/
+│   │   └── storage.js             # localStorage 讀寫封裝（持久化層）
+│   ├── hooks/
+│   │   └── usePeriodData.js       # 資料狀態管理 + 串接領域邏輯
+│   ├── utils/
+│   │   └── cyclePrediction.js     # 週期預測演算法（純函式）
+│   ├── components/
+│   │   ├── OnboardingFlow/        # 首次使用引導
+│   │   ├── EmptyStateOnboarding/  # 無紀錄時的空狀態
+│   │   ├── CalendarView/          # 月曆檢視
+│   │   ├── PredictionBanner/      # 週期天數 / 預計下次 提示條
+│   │   ├── QuickRecordModal/      # FAB 快速記錄
+│   │   ├── DayDetail/             # 單日詳情（檢視/編輯/刪除）
+│   │   ├── FlowPicker/            # 經量選擇（量少/中/多）共用元件
+│   │   └── SettingsPanel/         # 設定面板
+│   └── styles/
+│       ├── tokens.css             # 設計 token（顏色/字級/間距/圓角）
+│       └── global.css             # 全域樣式
+└── vite.config.js                 # base: '/Petal-Log/'
+```
+
+---
+
+## 6. 模組設計
+
+### 6.1 `App.jsx`（根元件）
+
+- 職責：串接 `usePeriodData`，管理畫面層級的 UI 狀態（目前月份、選取日期、Modal 開關）。
+- 依據 `settings.onboardingCompleted` 決定顯示 Onboarding 或主畫面。
+- 依據 `records.length === 0` 決定顯示 `EmptyStateOnboarding` 或 `PredictionBanner`。
+
+### 6.2 `usePeriodData`（狀態層）
+
+對外提供的介面：
+
+| 回傳值 | 說明 |
+|---|---|
+| `records` | 所有紀錄陣列 |
+| `recordByDate` | `Map<date, record>`，供日曆快速查找 |
+| `prediction` | `cyclePrediction.js` 算出的預測結果 |
+| `settings` | 使用者設定 |
+| `recordDay(date, flow)` | 新增或覆寫某天紀錄，內含「自動填滿後續天數」邏輯 |
+| `editRecord(id, patch)` / `removeRecord(id)` | 修改 / 刪除單筆紀錄 |
+| `updateSettings(patch)` | 局部更新設定並落盤 |
+| `resetAllData()` | 清空所有紀錄與設定 |
+
+**關鍵行為 — 自動填滿後續天數**：當使用者記錄「新一次經期的第一天」（前一天沒有紀錄）且 `settings.autoFillSubsequentDays` 為真時，會依平均經期天數自動建立後續數天的紀錄，減少重複操作。
+
+### 6.3 `storage.js`（持久化層）
+
+以兩把 key 存取 `localStorage`：
+
+- `petal-log:records`：紀錄陣列，寫入時依 `date` 去重並排序。
+- `petal-log:settings`：使用者設定物件。
+
+所有讀取皆有 `try/catch` 保底，JSON 解析失敗時退回預設值，避免壞資料造成白畫面。
+
+### 6.4 `cyclePrediction.js`（領域邏輯層）
+
+詳見第 8 章。
+
+### 6.5 UI 元件
+
+| 元件 | 職責 |
+|---|---|
+| `OnboardingFlow` | 二階段引導：詢問是否有歷史紀錄 → 輸入平均經期/週期天數，或直接採用預設值（5 天 / 30 天） |
+| `EmptyStateOnboarding` | 無任何紀錄時的第一次記錄呼籲（CTA） |
+| `CalendarView` | 月曆格線渲染、月份切換、標示「已記錄日」與「預測日」、點擊進入日詳情 |
+| `PredictionBanner` | 顯示「本次週期第幾天」與「預計下次日期」 |
+| `QuickRecordModal` | 由主畫面 FAB 觸發，快速記錄「今天或指定日期」的經量 |
+| `DayDetail` | 點選日曆某天後的詳情面板，可新增/編輯/刪除當天紀錄，顯示「經期第幾天」 |
+| `FlowPicker` | 「量少 / 量中 / 量多」三選一元件，供 `QuickRecordModal` 與 `DayDetail` 共用 |
+| `SettingsPanel` | 調整平均經期/週期天數、自動填滿開關、中性文字開關、清除所有資料 |
+
+---
+
+## 7. 資料模型
+
+### 7.1 Record（單日紀錄）
+
+```ts
+{
+  id: string      // 產生規則：`${date}-${Date.now()}` 或含 index 後綴
+  date: string     // 'yyyy-MM-dd'
+  flow: 'light' | 'medium' | 'heavy'
+}
+```
+
+### 7.2 Settings（使用者設定）
+
+```ts
+{
+  neutralLanguage: boolean        // 是否使用中性文案（預設 true）
+  avgPeriodLength: number         // 平均經期天數（預設 5）
+  avgCycleLength: number          // 平均週期天數（預設 30）
+  autoFillSubsequentDays: boolean // 記錄首日時是否自動填滿後續天數（預設 true）
+  onboardingCompleted: boolean    // 是否已完成引導（預設 false）
+}
+```
+
+### 7.3 儲存 Key
+
+| Key | 內容 |
+|---|---|
+| `petal-log:records` | `Record[]`，依日期排序 |
+| `petal-log:settings` | `Settings` |
+
+> 目前沒有 schema 版本欄位；若未來調整資料結構，需在 `storage.js` 加入遷移（migration）邏輯，見第 13 章。
+
+---
+
+## 8. 核心演算法：週期預測
+
+程式碼位置：`src/utils/cyclePrediction.js`
+
+### 8.1 名詞定義
+
+- **經期天數**：一次連續出血持續的天數。
+- **週期天數**：從「這次經期第一天」到「下次經期第一天」的間隔天數。
+
+### 8.2 演算流程
+
+1. **`groupIntoCycles`**：將所有已排序的紀錄日期，依「相鄰日期間隔 ≤ 1 天視為同一次經期」的規則分組成多個「週期（cycle）」，每組記錄起始日、結束日、長度。
+2. **`averageCycleLength`**：若歷史週期數 ≥ 2，取相鄰週期起始日間隔的平均值；否則採用使用者設定值 `avgCycleLength`。
+3. **`averagePeriodLength`**：取「非最新一次」的歷史週期長度平均值（最新一次可能尚未結束，故排除，避免低估）；資料不足時採用設定值 `avgPeriodLength`。
+4. **`nextPredictedDate`**：最近一次週期起始日 + 平均週期天數。
+5. **`currentCycleDay`**：找出「今天以前（含今天）已開始」的最後一個週期，計算今天是該週期第幾天。此設計刻意排除未來日期的週期，避免使用者手動輸入未來紀錄時，「今天」找不到對應週期而顯示消失。
+6. **`predictedDates`**：以 `nextPredictedDate` 為起點，往後推 `averagePeriodLength` 天，標記為日曆上的「預測日」；若使用者關閉自動填滿且目前正處於一次經期中，會額外補上「本次週期尚未記錄但理論上應落在經期內」的天數，讓預測與實際填寫方式保持一致。
+
+### 8.3 邊界情況
+
+- 無任何紀錄：回傳 `hasData: false`，UI 顯示 `EmptyStateOnboarding`，不顯示 `PredictionBanner`。
+- 只有一次週期紀錄：`averageCycleLength`／`averagePeriodLength` 退回使用者設定值。
+- 演算法目前**不排除異常值**（例如使用者手誤造成的極端週期天數會直接拉進平均值）——已知限制，見第 13 章。
+
+---
+
+## 9. 使用者流程
+
+對應 `figma-export/` 內的設計稿順序：
+
+```mermaid
+flowchart LR
+    A["01 首次開啟\n詢問是否有歷史紀錄"] --> B["02 輸入平均經期/週期天數\n或採用預設值"]
+    B --> C["03 主畫面（空狀態）\n日曆 + 開始第一筆記錄"]
+    C --> D["04 快速記錄\nFAB → 選日期/經量 → 儲存"]
+    D --> E["05 主畫面（有紀錄）\n日曆標示已記錄日/預測日\n+ 週期預測提示條"]
+    E --> F["06 點選日期 → 日詳情\n檢視/編輯/刪除當日紀錄"]
+    E --> G["07 設定\n調整週期參數/開關/清除資料"]
+```
+
+**主要互動路徑**
+
+- **首次使用**：`01 → 02（或跳過）→ 03`。
+- **日常記錄**：主畫面點 FAB →（`04`）選日期與經量 → 儲存 → 日曆即時更新。
+- **補記錄/修改/刪除**：主畫面點日曆格子 →（`06`）進入 `DayDetail`。
+- **調整參數**：主畫面右上角齒輪 →（`07`）`SettingsPanel`。
+
+---
+
+## 10. 設計系統（UI 視覺語言）
+
+定義於 `src/styles/tokens.css`，供作品集展示參考：
+
+- **主色 Rose**（`#b5645c` 系）：代表「已記錄的經期日」。
+- **輔色 Lavender**（`#9b8ac4` 系）：代表「預測日」。
+- **中性色**：米白底（`#fbf6f3`）+ 深棕字（`#453936`），營造柔和、低刺激的視覺氛圍，符合健康記錄類產品的情緒基調。
+- **字型**：中文用 Noto Sans TC / PingFang TC；數字（日期）用 Inter，強化日曆數字的辨識度。
+- **圓角與陰影**：卡片/面板使用 `16px` 圓角與柔和陰影，Modal 皆以 bottom-sheet 形式呈現，符合行動裝置操作習慣。
+
+---
+
+## 11. 非功能需求
+
+### 11.1 隱私與資料安全
+
+- **零伺服器、零帳號**：所有資料只存在使用者自己的瀏覽器內，不會有第三方（含開發者本人）能存取。
+- **中性語言選項**：介面文案可切換為中性字眼（如「記錄」），降低他人瞥見螢幕時識別出這是經期記錄 App 的風險。
+- **風險**：`localStorage` 未加密，共用裝置上的其他使用者理論上可透過瀏覽器開發者工具讀取；目前不在威脅模型（threat model）處理範圍內。
+
+### 11.2 效能
+
+- Runtime 依賴僅 3 個套件，建構後 bundle 體積小，適合行動網路環境載入。
+- 所有清單/日曆運算使用 `useMemo` 快取，避免不必要的重算。
+
+### 11.3 無障礙（Accessibility）
+
+- 已具備：`aria-label`（月份切換、設定按鈕）、`role="dialog"` + `aria-modal`（各 Modal）、`role="radiogroup"` + `aria-checked`（`FlowPicker`）。
+- 尚待加強：鍵盤 focus trap（Modal 開啟時焦點未強制鎖定於面板內）、色彩對比的正式驗證（WCAG AA）。
+
+### 11.4 瀏覽器相容性
+
+- 依賴 `localStorage`、`<input type="date">`，需現代瀏覽器（不含 IE）。
+- 目前未做 `localStorage` 不可用（無痕模式限制、容量滿）時的錯誤提示與降級處理。
+
+---
+
+## 12. 部署與 CI/CD
+
+- **流程**：push 到 `main` 分支 → GitHub Actions（`.github/workflows/deploy.yml`）執行 `npm ci && npm run build` → 產出的 `dist/` 上傳為 Pages artifact → 部署到 GitHub Pages。
+- **Base path**：`vite.config.js` 設定 `base: '/Petal-Log/'`，對應 GitHub Pages 的 repo 子路徑託管方式。
+- **無測試關卡**：目前 CI 只做 build，沒有 lint / 單元測試步驟（見第 13 章已知限制）。
+
+---
+
+## 13. 已知限制
+
+| 限制 | 說明 |
+|---|---|
+| 單裝置、無備份 | 資料僅存於單一瀏覽器的 `localStorage`；清除瀏覽器資料、換裝置、換瀏覽器即遺失紀錄，且無任何匯出/備份手段。 |
+| 無雲端同步 | 無法跨裝置檢視/記錄。 |
+| 無通知提醒 | 不會主動提醒使用者「預計經期即將到來」。 |
+| 預測演算法簡化 | 直接取歷史週期算術平均，未排除異常值（如手誤造成的極端天數），週期不規律的使用者預測準確度會下降。 |
+| 無自動化測試 | 目前無單元測試（尤其 `cyclePrediction.js` 這類含邊界情況的純函式，最適合補測試）與 CI lint 關卡。 |
+| 無 schema 版本控管 | `storage.js` 沒有資料版本欄位，未來若調整 Record/Settings 結構，舊資料需要手動處理遷移。 |
+
+---
+
+## 14. 未來規劃（Roadmap）
+
+以下項目為已知方向，尚未排定優先順序與時程，設計時需注意「純本地、零後端」是目前的核心賣點，任何雲端相關功能都應設計為**選配（opt-in）**，不影響不需要該功能的使用者。
+
+### 14.1 雲端同步 / 帳號系統
+
+- 需新增後端服務（或採用 BaaS，如 Supabase / Firebase）與認證機制。
+- 架構上建議將 `storage.js` 抽象為介面（`LocalAdapter` / `CloudAdapter`），`usePeriodData` 不感知底層是本地還是雲端，未來才好雙寫或切換。
+- 需設計本地/雲端資料衝突時的合併策略（例如以 `updatedAt` 時間戳決勝）。
+
+### 14.2 多裝置備份
+
+- 若不做完整帳號系統，可先做輕量版：產生備份檔（JSON）供使用者手動於新裝置匯入，作為雲端同步前的過渡方案，與 14.4 資料匯出可共用底層邏輯。
+
+### 14.3 通知提醒
+
+- Web 端可用 `Notification API` + Service Worker（需將專案升級為 PWA，含 manifest 與 SW 註冊）。
+- 提醒時機建議可設定（如「預計經期前 N 天」），並沿用 `neutralLanguage` 設定調整通知文案。
+
+### 14.4 資料匯出（CSV / JSON）
+
+- 相對低成本、可優先實作：讀取 `getRecords()` 結果，序列化為 CSV 或 JSON 並觸發瀏覽器下載（`Blob` + `<a download>`），無需新增依賴。
+- 可與 14.2 的「匯入」功能對應，形成完整備份/還原迴路。
+
+### 14.5 週期圖表統計
+
+- 新增如「近 6 個月週期天數趨勢」「經量分佈」等圖表，呈現於 `SettingsPanel` 或新增獨立的「統計」頁籤。
+- 資料來源可直接複用 `cyclePrediction.js` 的 `groupIntoCycles` 分組結果，避免重複造輪子；圖表繪製可先評估用輕量 SVG 手刻，維持目前「零額外重依賴」的原則，再視需求導入圖表庫。
+
+---
+
+## 15. 詞彙表
+
+| 詞彙 | 說明 |
+|---|---|
+| 經期天數（Period length） | 一次連續出血持續的天數 |
+| 週期天數（Cycle length） | 這次經期第一天到下次經期第一天的間隔天數 |
+| Flow（經量） | `light`（量少）/ `medium`（量中）/ `heavy`（量多） |
+| 中性語言（Neutral language） | 介面文案的隱私保護選項，隱藏「經期」等敏感字眼 |
+| 自動填滿（Auto-fill subsequent days） | 記錄經期首日時，依平均經期天數自動建立後續天數紀錄的設定 |
+
+---
+
+## 修訂紀錄
+
+| 版本 | 日期 | 說明 |
+|---|---|---|
+| v1.0 | 2026-07-10 | 首版，涵蓋現行架構與已知未來規劃 |
