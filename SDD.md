@@ -3,7 +3,7 @@
 | 項目 | 內容 |
 |---|---|
 | 專案名稱 | Petal Log |
-| 文件版本 | v1.4 |
+| 文件版本 | v1.6 |
 | 最後更新 | 2026-07-10 |
 | 狀態 | 現行版本（對應已實作功能） |
 
@@ -103,17 +103,19 @@ Pental-Log/
 │   ├── hooks/
 │   │   └── usePeriodData.js       # 資料狀態管理 + 串接領域邏輯
 │   ├── utils/
-│   │   ├── cyclePrediction.js     # 週期預測演算法（純函式）
-│   │   └── symptoms.js            # 伴隨症狀選項定義
+│   │   ├── cyclePrediction.js     # 週期預測演算法（純函式，含異常偵測）
+│   │   └── symptoms.js            # 伴隨症狀選項定義 + 症狀頻率統計
 │   ├── components/
 │   │   ├── OnboardingFlow/        # 首次使用引導
 │   │   ├── EmptyStateOnboarding/  # 無紀錄時的空狀態
 │   │   ├── CalendarView/          # 月曆檢視
 │   │   ├── PredictionBanner/      # 週期天數 / 預計下次 提示條
+│   │   ├── AnomalyBanner/         # 週期異常提醒條（週期不規律／經期過長）
 │   │   ├── QuickRecordModal/      # FAB 快速記錄
 │   │   ├── DayDetail/             # 單日詳情（檢視/編輯/刪除）
 │   │   ├── FlowPicker/            # 經量選擇（量少/中/多）共用元件
 │   │   ├── SymptomPicker/         # 伴隨症狀多選共用元件
+│   │   ├── ReportView/            # 週期報表全畫面（摘要/歷史表/異常標記/症狀統計，可列印為 PDF）
 │   │   └── SettingsPanel/         # 設定面板
 │   └── styles/
 │       ├── tokens.css             # 設計 token（顏色/字級/間距/圓角）
@@ -169,11 +171,13 @@ Pental-Log/
 | `EmptyStateOnboarding` | 無任何紀錄時的第一次記錄呼籲（CTA） |
 | `CalendarView` | 月曆格線渲染、月份切換、標示「已記錄日」「預測日」「易孕期」「排卵日」與（選配）四階段色條、點擊進入日詳情 |
 | `PredictionBanner` | 顯示「本次週期第幾天／距離下次」「預計下次日期」「易孕期區間」（含免責提示） |
+| `AnomalyBanner` | 當 `prediction.hasAnomalies` 為真且 `settings.showAnomalyAlerts` 開啟時顯示，列出偵測到的異常次數，並提供「查看報表」按鈕開啟 `ReportView` |
 | `QuickRecordModal` | 由主畫面 FAB 觸發，快速記錄「今天或指定日期」的經量（不含症狀，維持最少點擊） |
 | `DayDetail` | 點選日曆某天後的詳情面板，可新增/編輯/刪除當天紀錄，顯示「經期第幾天」或「排卵日/易孕期」標註，並可選配顯示伴隨症狀記錄區塊 |
 | `FlowPicker` | 「量少 / 量中 / 量多」三選一元件，供 `QuickRecordModal` 與 `DayDetail` 共用 |
 | `SymptomPicker` | 伴隨症狀多選晶片元件，內建選項定義於 `src/utils/symptoms.js`，可再併入 `settings.customSymptoms`；晶片顏色讀 `settings.symptomColors`（覆寫）或選項的 `defaultColor`；另有「其他」晶片，開啟後顯示自由文字輸入框，寫入 `Record.symptomNote`。供 `DayDetail` 使用 |
-| `SettingsPanel` | 調整平均經期/週期天數、自動填滿開關、中性文字開關、排卵預測顯示開關、四階段顏色開關＋色票、症狀記錄開關、內建與自訂症狀的色票、自訂症狀新增/刪除、清除所有資料 |
+| `ReportView` | 取代主畫面的全畫面報表頁：摘要統計、異常提醒、週期歷史表、伴隨症狀頻率統計，提供「列印／另存為 PDF」按鈕（呼叫瀏覽器原生 `window.print()`，零依賴） |
+| `SettingsPanel` | 調整平均經期/週期天數、自動填滿開關、中性文字開關、排卵預測顯示開關、四階段顏色開關＋色票、症狀記錄開關、內建與自訂症狀的色票、自訂症狀新增/刪除、異常提醒開關、查看報表入口、清除所有資料 |
 
 ---
 
@@ -206,6 +210,7 @@ Pental-Log/
   showOvulationPhase: boolean       // 月曆是否標示排卵期顏色（預設 false）
   showLutealPhase: boolean          // 月曆是否標示黃體期顏色（預設 false）
   showSymptomTracking: boolean      // `DayDetail` 是否顯示伴隨症狀記錄區塊（預設 false）
+  showAnomalyAlerts: boolean        // 是否在主畫面顯示 `AnomalyBanner`（預設 true）
   phaseColors: {                    // 四階段各自的顏色（hex），可在設定中用色票調整
     menstrual: string                 // 預設 '#b5645c'
     follicular: string                // 預設 '#c98a2b'
@@ -278,6 +283,27 @@ Pental-Log/
 | 黃體期 `lutealPhaseDates` | 排卵日隔天 ~ 下次預計週期前一天 | `luteal` = `#6f8fb0` |
 
 任一區間若起訖日反轉（如經期天數過長導致濾泡期被壓縮為 0 天）則回傳空陣列，`getDateRange` 內建此保護。四個階段各自對應一個 `Settings` 開關（`showMenstrualPhase` 等），預設皆為 `false`（opt-in）；`App.jsx` 只在對應開關開啟時才把日期陣列傳給 `CalendarView`，首頁 `PredictionBanner` 不顯示這四個階段的文字說明，僅在月曆日格上方以一條 3px 色條標示（`CalendarView.module.css` 的 `.phaseIndicator`，用 inline `style` 套用 `settings.phaseColors` 而非固定 CSS class），與底部既有的易孕期／排卵日圓點（見 8.4）分開，避免視覺重疊。每個階段的顏色可在 `SettingsPanel` 用 `<input type="color">` 個別調整，寫回 `settings.phaseColors[phase]`。
+
+### 8.6 異常偵測與週期報表
+
+`analyzeCycleHistory(cycles, averageCycleLength, hasReliableAverage)` 逐一檢視 `groupIntoCycles` 分出的每一次週期，標記兩種異常（僅為日曆推算的粗略提示，**非醫療診斷**）：
+
+| 異常類型 | 判斷條件 |
+|---|---|
+| 經期過長 `isProlongedPeriod` | 該次週期的連續紀錄天數（`cycle.length`）超過 `PROLONGED_PERIOD_DAYS`（7 天） |
+| 週期不規律 `isIrregularCycle` | 該次週期到下次週期的間隔天數（`cycleLength`）小於 `NORMAL_CYCLE_MIN_DAYS`（21）、大於 `NORMAL_CYCLE_MAX_DAYS`（35），**或**（在 `hasReliableAverage` 為真，即至少有 2 次週期間隔可計算平均時）與 `averageCycleLength` 相差超過 `PERSONAL_CYCLE_DEVIATION_DAYS`（7 天）。最新一次週期因尚未有下一次起始日，`cycleLength` 為 `null`，不做此項判斷 |
+
+`getCyclePrediction` 回傳的 `cycleHistory` 陣列即為逐週期的 `{ startDate, endDate, periodLength, cycleLength, isProlongedPeriod, isIrregularCycle }`；`hasAnomalies`／`prolongedPeriodCount`／`irregularCycleCount` 為彙總結果。
+
+- **`AnomalyBanner`**：`settings.showAnomalyAlerts`（預設 `true`）開啟且 `prediction.hasAnomalies` 為真時，於主畫面 `PredictionBanner` 下方顯示提醒文字與「查看報表」按鈕。
+- **`ReportView`**：由 `SettingsPanel`「查看週期報表」或 `AnomalyBanner`「查看報表」開啟，於 `App.jsx` 以 `isReportOpen` 狀態整頁取代主畫面（同 Onboarding 的整頁切換模式），內容包含：
+  1. 摘要統計：已記錄週期數、平均週期／經期天數、週期／經期天數範圍（取自 `cycleHistory` 逐項最小最大值）。
+  2. 異常提醒（`hasAnomalies` 時顯示）：異常次數與門檻說明。
+  3. 週期歷史表：逐次週期的起始日、結束日、經期天數、週期天數，異常列以底色與 `⚠` 標示。
+  4. 伴隨症狀統計：`summarizeSymptoms(records, settings.customSymptoms)`（定義於 `src/utils/symptoms.js`）統計每個症狀代碼（含自訂）出現次數，並列出所有「其他」自由文字備註（依日期排序）。
+  5. 「列印／另存為 PDF」按鈕呼叫瀏覽器原生 `window.print()`；`ReportView.module.css` 用 `@media print` 隱藏返回／列印按鈕列（`.noPrint`），不需要任何 PDF 產生套件，維持專案「零額外重依賴」原則。
+  6. **列印防溢出**：`.table` 使用 `table-layout: fixed`，並在表格儲存格、統計清單、備註清單上加 `overflow-wrap: break-word` / `word-break: break-word`。原因：症狀備註是使用者自由輸入的文字，可能出現沒有空白可斷行的長字串（例如英數字混雜），若表格維持預設的 `table-layout: auto`，瀏覽器會依內容最小寬度撐開欄位，導致整張表格比列印頁面還寬而被裁切、且列印對話框的「縮放比例」對此無效（縮放是在版面配置完成後才套用，無法讓已經超寬的表格重新換行）。同時在 `@media print` 加上 `@page { margin: 12mm }` 與較小的表格字級，讓內容穩定落在紙張可印刷範圍內。
+  7. **列印安全邊距**：`@page { margin: 12mm }` 並非所有瀏覽器／印表機驅動、或「列印為 PDF」的轉檔路徑都會確實套用（例如部分環境會忽略 `@page` 規則），若只靠它留白，內容可能貼齊紙張最外緣，實際列印時被裁切。因此 `.page` 在 `@media print` 下額外保留 `padding: 8mm`，把安全邊距內建在內容本身的版面配置裡，不依賴 `@page` 是否生效，雙重保險。
 
 ---
 
@@ -386,8 +412,9 @@ flowchart LR
 
 ### 14.4 資料匯出（CSV / JSON）
 
+- **v1.5 已實作人類可讀的 PDF 報表**（見 8.6、`ReportView`，透過瀏覽器列印產生），滿足「提供醫師參考」的需求；但**機器可讀的原始資料匯出（CSV / JSON）仍未實作**。
 - 相對低成本、可優先實作：讀取 `getRecords()` 結果，序列化為 CSV 或 JSON 並觸發瀏覽器下載（`Blob` + `<a download>`），無需新增依賴。
-- 可與 14.2 的「匯入」功能對應，形成完整備份/還原迴路。
+- 可與 14.2 的「匯入」功能對應，形成完整備份/還原迴路，是 PDF 報表無法取代的用途。
 
 ### 14.5 週期圖表統計
 
@@ -417,3 +444,5 @@ flowchart LR
 | v1.2 | 2026-07-10 | `PredictionBanner` 首個卡片改依 `isPeriodActive` 切換顯示內容：生理期進行中顯示「本次週期第幾天」，結束後改顯示「距離下次生理期還有幾天」 |
 | v1.3 | 2026-07-10 | 1) 預設週期天數 30→28 天；2) `averageCycleLength`／`averagePeriodLength` 改為只取最近 6 次週期計算（`MAX_CYCLES_FOR_AVERAGE`）；3) 新增月經期/濾泡期/排卵期/黃體期四階段計算（`getCyclePhases`）與月曆色條標示，各階段獨立 opt-in 設定開關；4) 新增伴隨症狀記錄（`Record.symptoms`、`SymptomPicker`、`showSymptomTracking` 開關） |
 | v1.4 | 2026-07-10 | 1) `SymptomPicker` 新增「其他」晶片＋自由文字輸入（`Record.symptomNote`）；2) 新增 `settings.customSymptoms`，可在 `SettingsPanel` 新增/刪除自訂症狀，與內建症狀併入同一個選單；3) 四階段顏色與症狀顏色（含自訂症狀）皆從寫死的 CSS token 改為 `settings.phaseColors`／`settings.symptomColors`，可在 `SettingsPanel` 用色票個別調整，`CalendarView`／`SymptomPicker` 改用 inline style 套用 |
+| v1.5 | 2026-07-11 | 新增異常偵測與週期報表（見 8.6）：`analyzeCycleHistory` 標記「經期過長」／「週期不規律」，`AnomalyBanner` 於主畫面提醒（`showAnomalyAlerts` 開關），`ReportView` 提供摘要統計／週期歷史表／異常標記／症狀頻率統計，並可透過瀏覽器原生列印功能另存為 PDF（零額外依賴） |
+| v1.6 | 2026-07-11 | 修正 `ReportView` 列印／PDF 匯出時內容超出頁面邊界的問題：1) 表格改用 `table-layout: fixed` 並加上文字換行保護，避免使用者輸入的長字串（症狀備註）撐寬表格；2) `.page` 在列印時額外保留 `padding: 8mm` 安全邊距，不完全依賴可能不被所有環境套用的 `@page margin`（見 8.6 第 6、7 點） |

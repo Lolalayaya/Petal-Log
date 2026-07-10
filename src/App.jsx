@@ -7,6 +7,8 @@ import { DayDetail } from './components/DayDetail/DayDetail'
 import { EmptyStateOnboarding } from './components/EmptyStateOnboarding/EmptyStateOnboarding'
 import { SettingsPanel } from './components/SettingsPanel/SettingsPanel'
 import { OnboardingFlow } from './components/OnboardingFlow/OnboardingFlow'
+import { AnomalyBanner } from './components/AnomalyBanner/AnomalyBanner'
+import { ReportView } from './components/ReportView/ReportView'
 import { getDayOfPeriod } from './utils/cyclePrediction'
 import styles from './App.module.css'
 
@@ -26,6 +28,7 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(null)
   const [isQuickRecordOpen, setQuickRecordOpen] = useState(false)
   const [isSettingsOpen, setSettingsOpen] = useState(false)
+  const [isReportOpen, setReportOpen] = useState(false)
 
   const recordLabel = settings.neutralLanguage ? '記錄' : '經期記錄'
 
@@ -38,6 +41,17 @@ export default function App() {
           }
         />
       </div>
+    )
+  }
+
+  if (isReportOpen) {
+    return (
+      <ReportView
+        records={records}
+        prediction={prediction}
+        settings={settings}
+        onClose={() => setReportOpen(false)}
+      />
     )
   }
 
@@ -58,7 +72,12 @@ export default function App() {
       {records.length === 0 ? (
         <EmptyStateOnboarding onStart={() => setQuickRecordOpen(true)} />
       ) : (
-        <PredictionBanner prediction={prediction} showOvulationPrediction={settings.showOvulationPrediction} />
+        <>
+          <PredictionBanner prediction={prediction} showOvulationPrediction={settings.showOvulationPrediction} />
+          {settings.showAnomalyAlerts && (
+            <AnomalyBanner prediction={prediction} onViewReport={() => setReportOpen(true)} />
+          )}
+        </>
       )}
 
       <CalendarView
@@ -116,6 +135,7 @@ export default function App() {
         onClose={() => setSettingsOpen(false)}
         onUpdateSettings={updateSettings}
         onResetAllData={resetAllData}
+        onOpenReport={() => setReportOpen(true)}
       />
     </div>
   )

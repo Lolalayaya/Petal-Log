@@ -16,3 +16,32 @@ export const CUSTOM_SYMPTOM_COLOR_PALETTE = [
   '#b5645c', '#c98a2b', '#6f8fb0', '#8a7aa8', '#4f9d8c',
   '#a8763f', '#b98aa0', '#7a8c6b', '#5b8fa3', '#9b8ac4',
 ]
+
+// 統計每個症狀在所有紀錄中出現的次數，供報表使用；同時回傳所有「其他」自由文字備註（依日期排序）。
+export function summarizeSymptoms(records, customSymptoms = []) {
+  const labelByValue = new Map([
+    ...SYMPTOM_OPTIONS.map((s) => [s.value, s.label]),
+    ...customSymptoms.map((s) => [s.id, s.label]),
+  ])
+
+  const counts = new Map()
+  const notes = []
+
+  records.forEach((record) => {
+    ;(record.symptoms ?? []).forEach((value) => {
+      const label = labelByValue.get(value) ?? value
+      counts.set(label, (counts.get(label) ?? 0) + 1)
+    })
+    if (record.symptomNote) {
+      notes.push({ date: record.date, note: record.symptomNote })
+    }
+  })
+
+  const symptomFrequency = [...counts.entries()]
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count)
+
+  notes.sort((a, b) => a.date.localeCompare(b.date))
+
+  return { symptomFrequency, notes }
+}

@@ -1,0 +1,28 @@
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  background: var(--color-amber-300);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.text {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-primary);
+  flex: 1;
+}
+
+.reportButton {
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-amber-600);
+  color: #fff;
+  font-size: var(--font-size-caption);
+  font-weight: 600;
+  padding: var(--space-sm) var(--space-md);
+  white-space: nowrap;
+}

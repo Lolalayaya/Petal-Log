@@ -13,6 +13,14 @@ const FERTILE_DAYS_AFTER_OVULATION = 1
 // 平均值只取「最接近現在」的最多 6 次週期，避免久遠的紀錄拖累近期實際狀況的預測準確度。
 const MAX_CYCLES_FOR_AVERAGE = 6
 
+// 異常提醒門檻：一般臨床上常見的「正常週期」定義為 21～35 天、經期 2～7 天。
+// 個人化門檻則是跟自己最近的平均週期天數相差超過 7 天，即使落在 21～35 天內也提醒。
+// 這些僅為日曆推算的粗略提示，非醫療診斷。
+const NORMAL_CYCLE_MIN_DAYS = 21
+const NORMAL_CYCLE_MAX_DAYS = 35
+const PROLONGED_PERIOD_DAYS = 7
+const PERSONAL_CYCLE_DEVIATION_DAYS = 7
+
 function groupIntoCycles(sortedDates) {
   const cycles = []
   sortedDates.forEach((dateStr) => {
@@ -91,6 +99,42 @@ function getCyclePhases(cycleStartDate, averagePeriodLength, ovulationDate, next
   }
 }
 
+// 逐一檢視歷史週期，標記「經期過長」與「週期不規律」的異常週期，供報表與提醒使用。
+function analyzeCycleHistory(cycles, averageCycleLength, hasReliableAverage) {
+  const cycleHistory = cycles.map((cycle, i) => {
+    const nextCycle = cycles[i + 1]
+    const cycleLength = nextCycle
+      ? differenceInCalendarDays(parseISO(nextCycle.startDate), parseISO(cycle.startDate))
+      : null
+
+    const isProlongedPeriod = cycle.length > PROLONGED_PERIOD_DAYS
+    const isIrregularCycle =
+      cycleLength !== null &&
+      (cycleLength < NORMAL_CYCLE_MIN_DAYS ||
+        cycleLength > NORMAL_CYCLE_MAX_DAYS ||
+        (hasReliableAverage && Math.abs(cycleLength - averageCycleLength) > PERSONAL_CYCLE_DEVIATION_DAYS))
+
+    return {
+      startDate: cycle.startDate,
+      endDate: cycle.lastDate,
+      periodLength: cycle.length,
+      cycleLength,
+      isProlongedPeriod,
+      isIrregularCycle,
+    }
+  })
+
+  const prolongedPeriodCount = cycleHistory.filter((c) => c.isProlongedPeriod).length
+  const irregularCycleCount = cycleHistory.filter((c) => c.isIrregularCycle).length
+
+  return {
+    cycleHistory,
+    hasAnomalies: prolongedPeriodCount > 0 || irregularCycleCount > 0,
+    prolongedPeriodCount,
+    irregularCycleCount,
+  }
+}
+
 export function getCyclePrediction(records, settings, today = new Date()) {
   if (!records.length) {
     return {
@@ -110,6 +154,10 @@ export function getCyclePrediction(records, settings, today = new Date()) {
       follicularPhaseDates: [],
       ovulationPhaseDates: [],
       lutealPhaseDates: [],
+      cycleHistory: [],
+      hasAnomalies: false,
+      prolongedPeriodCount: 0,
+      irregularCycleCount: 0,
     }
   }
 
@@ -174,6 +222,7 @@ export function getCyclePrediction(records, settings, today = new Date()) {
 
   const fertility = getFertilityPrediction(nextPredictedDate)
   const phases = getCyclePhases(lastCycle.startDate, averagePeriodLength, fertility.ovulationDate, nextPredictedDate)
+  const anomalies = analyzeCycleHistory(cycles, averageCycleLength, recentCyclesForInterval.length >= 2)
 
   return {
     hasData: true,
@@ -186,5 +235,6 @@ export function getCyclePrediction(records, settings, today = new Date()) {
     predictedDates,
     ...fertility,
     ...phases,
+    ...anomalies,
   }
 }

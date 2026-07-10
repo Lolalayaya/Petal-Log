@@ -1,0 +1,158 @@
+.page {
+  max-width: 800px;
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--space-lg) var(--space-md) 64px;
+  color: var(--color-text-primary);
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.actions {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
+.backButton {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+  padding: var(--space-sm) var(--space-lg);
+}
+
+.printButton {
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-rose-600);
+  color: #fff;
+  font-size: var(--font-size-caption);
+  font-weight: 600;
+  padding: var(--space-sm) var(--space-lg);
+}
+
+.title {
+  font-size: var(--font-size-h1);
+  font-weight: 700;
+  color: var(--color-rose-600);
+}
+
+.meta {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-xs);
+  margin-bottom: var(--space-lg);
+}
+
+.empty {
+  color: var(--color-text-secondary);
+}
+
+.section {
+  margin-bottom: var(--space-lg);
+}
+
+.sectionTitle {
+  font-size: var(--font-size-h2);
+  font-weight: 600;
+  margin-bottom: var(--space-sm);
+}
+
+.subTitle {
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  margin-top: var(--space-md);
+  margin-bottom: var(--space-sm);
+}
+
+.statList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  font-size: var(--font-size-body);
+  padding-left: var(--space-md);
+}
+
+.anomalySection {
+  background: var(--color-amber-300);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+}
+
+.disclaimer {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-sm);
+}
+
+.table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: var(--font-size-caption);
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: var(--space-sm);
+  border-bottom: 1px solid var(--color-border);
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.table th {
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.anomalyRow {
+  background: var(--color-amber-300);
+}
+
+.noteList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  font-size: var(--font-size-caption);
+  padding-left: var(--space-md);
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.footer {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-xl);
+  text-align: center;
+}
+
+@media print {
+  @page {
+    margin: 12mm;
+  }
+
+  .noPrint {
+    display: none;
+  }
+
+  .page {
+    max-width: 100%;
+    width: 100%;
+    /* 不能只靠 @page margin 留白——並非所有瀏覽器/印表機驅動都會套用它，
+       這裡在內容本身也保留安全邊距，兩層保險避免實際列印時貼齊紙張邊緣被裁切。 */
+    padding: 8mm;
+  }
+
+  .anomalySection {
+    background: none;
+    border: 1px solid var(--color-amber-600);
+  }
+
+  .table {
+    font-size: 10px;
+  }
+}

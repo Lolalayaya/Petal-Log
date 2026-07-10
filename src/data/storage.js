@@ -13,6 +13,7 @@ const DEFAULT_SETTINGS = {
   showOvulationPhase: false,
   showLutealPhase: false,
   showSymptomTracking: false,
+  showAnomalyAlerts: true,
   phaseColors: {
     menstrual: '#b5645c',
     follicular: '#c98a2b',

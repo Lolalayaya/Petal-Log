@@ -9,7 +9,7 @@ const PHASES = [
   { key: 'luteal', label: '黃體期', toggleKey: 'showLutealPhase' },
 ]
 
-export function SettingsPanel({ isOpen, settings, onClose, onUpdateSettings, onResetAllData }) {
+export function SettingsPanel({ isOpen, settings, onClose, onUpdateSettings, onResetAllData, onOpenReport }) {
   const [newSymptomLabel, setNewSymptomLabel] = useState('')
 
   if (!isOpen) return null
@@ -197,6 +197,28 @@ export function SettingsPanel({ isOpen, settings, onClose, onUpdateSettings, onR
             </div>
           </>
         )}
+
+        <div className={styles.sectionLabel}>數據與報表</div>
+
+        <label className={styles.row}>
+          <span>週期不規律／經期過長時提醒</span>
+          <input
+            type="checkbox"
+            checked={settings.showAnomalyAlerts}
+            onChange={(e) => onUpdateSettings({ showAnomalyAlerts: e.target.checked })}
+          />
+        </label>
+
+        <button
+          type="button"
+          className={styles.reportEntryButton}
+          onClick={() => {
+            onOpenReport()
+            onClose()
+          }}
+        >
+          查看週期報表（可列印／存為 PDF）
+        </button>
 
         <button type="button" className={styles.dangerButton} onClick={handleReset}>
           清除所有本機紀錄
