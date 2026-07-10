@@ -123,6 +123,7 @@ export default function App() {
         showSymptomTracking={settings.showSymptomTracking}
         customSymptoms={settings.customSymptoms}
         symptomColors={settings.symptomColors}
+        hiddenSymptoms={settings.hiddenSymptoms}
         onClose={() => setSelectedDate(null)}
         onSave={recordDay}
         onDelete={removeRecord}

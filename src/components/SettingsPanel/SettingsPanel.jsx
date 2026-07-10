@@ -11,6 +11,7 @@ const PHASES = [
 
 export function SettingsPanel({ isOpen, settings, onClose, onUpdateSettings, onResetAllData, onOpenReport }) {
   const [newSymptomLabel, setNewSymptomLabel] = useState('')
+  const [isSymptomSectionExpanded, setSymptomSectionExpanded] = useState(false)
 
   if (!isOpen) return null
 
@@ -51,9 +52,17 @@ export function SettingsPanel({ isOpen, settings, onClose, onUpdateSettings, onR
     })
   }
 
+  const toggleSymptomVisibility = (symptomValue) => {
+    onUpdateSettings({
+      hiddenSymptoms: settings.hiddenSymptoms.includes(symptomValue)
+        ? settings.hiddenSymptoms.filter((v) => v !== symptomValue)
+        : [...settings.hiddenSymptoms, symptomValue],
+    })
+  }
+
   const allSymptomsForColor = [
-    ...SYMPTOM_OPTIONS,
-    ...settings.customSymptoms.map((s) => ({ value: s.id, label: s.label, defaultColor: '#9b8ac4' })),
+    ...SYMPTOM_OPTIONS.map((s) => ({ ...s, isCustom: false })),
+    ...settings.customSymptoms.map((s) => ({ value: s.id, label: s.label, defaultColor: '#9b8ac4', isCustom: true })),
   ]
 
   return (
@@ -150,51 +159,82 @@ export function SettingsPanel({ isOpen, settings, onClose, onUpdateSettings, onR
 
         {settings.showSymptomTracking && (
           <>
-            <div className={styles.sectionLabel}>症狀顏色</div>
-            {allSymptomsForColor.map((symptom) => (
-              <label key={symptom.value} className={styles.row}>
-                <span>{symptom.label}</span>
-                <input
-                  type="color"
-                  value={settings.symptomColors[symptom.value] || symptom.defaultColor}
-                  onChange={(e) => updateSymptomColor(symptom.value, e.target.value)}
-                  className={styles.colorInput}
-                  aria-label={`${symptom.label}顏色`}
-                />
-              </label>
-            ))}
+            <button
+              type="button"
+              className={styles.accordionToggle}
+              onClick={() => setSymptomSectionExpanded((v) => !v)}
+              aria-expanded={isSymptomSectionExpanded}
+            >
+              <span>症狀項目與顏色設定</span>
+              <span className={styles.chevron} aria-hidden="true">
+                {isSymptomSectionExpanded ? '︿' : '﹀'}
+              </span>
+            </button>
 
-            <div className={styles.sectionLabel}>自訂症狀</div>
-            {settings.customSymptoms.map((symptom) => (
-              <div key={symptom.id} className={styles.row}>
-                <span>{symptom.label}</span>
-                <button
-                  type="button"
-                  className={styles.smallDeleteButton}
-                  onClick={() => removeCustomSymptom(symptom.id)}
-                >
-                  移除
-                </button>
-              </div>
-            ))}
-            <div className={styles.addSymptomRow}>
-              <input
-                type="text"
-                value={newSymptomLabel}
-                onChange={(e) => setNewSymptomLabel(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    addCustomSymptom()
-                  }
-                }}
-                placeholder="新增症狀名稱"
-                className={styles.textInput}
-              />
-              <button type="button" className={styles.addButton} onClick={addCustomSymptom}>
-                新增
-              </button>
-            </div>
+            {isSymptomSectionExpanded && (
+              <>
+                <div className={styles.sectionLabel}>症狀顯示與顏色</div>
+                {allSymptomsForColor.map((symptom) => (
+                  <div key={symptom.value} className={styles.row}>
+                    <span
+                      className={symptom.isCustom ? undefined : styles.clickableLabel}
+                      onClick={symptom.isCustom ? undefined : () => toggleSymptomVisibility(symptom.value)}
+                    >
+                      {symptom.label}
+                    </span>
+                    <span className={styles.rowControls}>
+                      <input
+                        type="color"
+                        value={settings.symptomColors[symptom.value] || symptom.defaultColor}
+                        onChange={(e) => updateSymptomColor(symptom.value, e.target.value)}
+                        className={styles.colorInput}
+                        aria-label={`${symptom.label}顏色`}
+                      />
+                      {!symptom.isCustom && (
+                        <input
+                          type="checkbox"
+                          checked={!settings.hiddenSymptoms.includes(symptom.value)}
+                          onChange={() => toggleSymptomVisibility(symptom.value)}
+                          aria-label={`顯示${symptom.label}`}
+                        />
+                      )}
+                    </span>
+                  </div>
+                ))}
+
+                <div className={styles.sectionLabel}>自訂症狀</div>
+                {settings.customSymptoms.map((symptom) => (
+                  <div key={symptom.id} className={styles.row}>
+                    <span>{symptom.label}</span>
+                    <button
+                      type="button"
+                      className={styles.smallDeleteButton}
+                      onClick={() => removeCustomSymptom(symptom.id)}
+                    >
+                      移除
+                    </button>
+                  </div>
+                ))}
+                <div className={styles.addSymptomRow}>
+                  <input
+                    type="text"
+                    value={newSymptomLabel}
+                    onChange={(e) => setNewSymptomLabel(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        addCustomSymptom()
+                      }
+                    }}
+                    placeholder="新增症狀名稱"
+                    className={styles.textInput}
+                  />
+                  <button type="button" className={styles.addButton} onClick={addCustomSymptom}>
+                    新增
+                  </button>
+                </div>
+              </>
+            )}
           </>
         )}
 

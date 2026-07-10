@@ -9,11 +9,12 @@ export function SymptomPicker({
   onNoteChange,
   customSymptoms = [],
   symptomColors = {},
+  hiddenSymptoms = [],
 }) {
   const [otherOpen, setOtherOpen] = useState(Boolean(note))
 
   const options = [
-    ...SYMPTOM_OPTIONS,
+    ...SYMPTOM_OPTIONS.filter((s) => !hiddenSymptoms.includes(s.value)),
     ...customSymptoms.map((s) => ({ value: s.id, label: s.label, defaultColor: '#9b8ac4' })),
   ]
 

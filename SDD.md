@@ -3,7 +3,7 @@
 | 項目 | 內容 |
 |---|---|
 | 專案名稱 | Petal Log |
-| 文件版本 | v1.6 |
+| 文件版本 | v1.7 |
 | 最後更新 | 2026-07-10 |
 | 狀態 | 現行版本（對應已實作功能） |
 
@@ -175,9 +175,9 @@ Pental-Log/
 | `QuickRecordModal` | 由主畫面 FAB 觸發，快速記錄「今天或指定日期」的經量（不含症狀，維持最少點擊） |
 | `DayDetail` | 點選日曆某天後的詳情面板，可新增/編輯/刪除當天紀錄，顯示「經期第幾天」或「排卵日/易孕期」標註，並可選配顯示伴隨症狀記錄區塊 |
 | `FlowPicker` | 「量少 / 量中 / 量多」三選一元件，供 `QuickRecordModal` 與 `DayDetail` 共用 |
-| `SymptomPicker` | 伴隨症狀多選晶片元件，內建選項定義於 `src/utils/symptoms.js`，可再併入 `settings.customSymptoms`；晶片顏色讀 `settings.symptomColors`（覆寫）或選項的 `defaultColor`；另有「其他」晶片，開啟後顯示自由文字輸入框，寫入 `Record.symptomNote`。供 `DayDetail` 使用 |
+| `SymptomPicker` | 伴隨症狀多選晶片元件，選項來源為 `src/utils/symptoms.js` 的內建症狀（已排除 `settings.hiddenSymptoms` 中的項目）再併入 `settings.customSymptoms`；晶片顏色讀 `settings.symptomColors`（覆寫）或選項的 `defaultColor`；另有「其他」晶片，開啟後顯示自由文字輸入框，寫入 `Record.symptomNote`。供 `DayDetail` 使用 |
 | `ReportView` | 取代主畫面的全畫面報表頁：摘要統計、異常提醒、週期歷史表、伴隨症狀頻率統計，提供「列印／另存為 PDF」按鈕（呼叫瀏覽器原生 `window.print()`，零依賴） |
-| `SettingsPanel` | 調整平均經期/週期天數、自動填滿開關、中性文字開關、排卵預測顯示開關、四階段顏色開關＋色票、症狀記錄開關、內建與自訂症狀的色票、自訂症狀新增/刪除、異常提醒開關、查看報表入口、清除所有資料 |
+| `SettingsPanel` | 調整平均經期/週期天數、自動填滿開關、中性文字開關、排卵預測顯示開關、四階段顏色開關＋色票、症狀記錄開關（展開後為手風琴式的「症狀項目與顏色設定」：內建症狀的顯示/隱藏開關＋色票、自訂症狀新增/刪除）、異常提醒開關、查看報表入口、清除所有資料 |
 
 ---
 
@@ -219,6 +219,7 @@ Pental-Log/
   }
   customSymptoms: { id: string, label: string }[]  // 使用者自訂的症狀項目，預設 []，id 格式為 `custom-${Date.now()}`
   symptomColors: Record<string, string>            // 症狀代碼（含內建與自訂）→ hex 顏色的覆寫表，未設定的內建症狀退回 `SYMPTOM_OPTIONS` 的 `defaultColor`
+  hiddenSymptoms: string[]          // 被隱藏、不在 `SymptomPicker` 顯示的內建症狀代碼，預設 []（全部顯示）；僅適用內建症狀，自訂症狀直接刪除即可
 }
 ```
 
@@ -446,3 +447,4 @@ flowchart LR
 | v1.4 | 2026-07-10 | 1) `SymptomPicker` 新增「其他」晶片＋自由文字輸入（`Record.symptomNote`）；2) 新增 `settings.customSymptoms`，可在 `SettingsPanel` 新增/刪除自訂症狀，與內建症狀併入同一個選單；3) 四階段顏色與症狀顏色（含自訂症狀）皆從寫死的 CSS token 改為 `settings.phaseColors`／`settings.symptomColors`，可在 `SettingsPanel` 用色票個別調整，`CalendarView`／`SymptomPicker` 改用 inline style 套用 |
 | v1.5 | 2026-07-11 | 新增異常偵測與週期報表（見 8.6）：`analyzeCycleHistory` 標記「經期過長」／「週期不規律」，`AnomalyBanner` 於主畫面提醒（`showAnomalyAlerts` 開關），`ReportView` 提供摘要統計／週期歷史表／異常標記／症狀頻率統計，並可透過瀏覽器原生列印功能另存為 PDF（零額外依賴） |
 | v1.6 | 2026-07-11 | 修正 `ReportView` 列印／PDF 匯出時內容超出頁面邊界的問題：1) 表格改用 `table-layout: fixed` 並加上文字換行保護，避免使用者輸入的長字串（症狀備註）撐寬表格；2) `.page` 在列印時額外保留 `padding: 8mm` 安全邊距，不完全依賴可能不被所有環境套用的 `@page margin`（見 8.6 第 6、7 點） |
+| v1.7 | 2026-07-11 | `SettingsPanel` 症狀設定改為手風琴（預設收起，展開才顯示「症狀項目與顏色設定」清單），並新增 `settings.hiddenSymptoms`：可個別關閉內建症狀在 `SymptomPicker` 的顯示，不影響歷史紀錄或報表統計 |

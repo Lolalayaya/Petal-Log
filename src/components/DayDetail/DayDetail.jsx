@@ -12,6 +12,7 @@ export function DayDetail({
   showSymptomTracking = false,
   customSymptoms = [],
   symptomColors = {},
+  hiddenSymptoms = [],
   onClose,
   onSave,
   onDelete,
@@ -52,6 +53,7 @@ export function DayDetail({
               onNoteChange={setSymptomNote}
               customSymptoms={customSymptoms}
               symptomColors={symptomColors}
+              hiddenSymptoms={hiddenSymptoms}
             />
           </div>
         )}

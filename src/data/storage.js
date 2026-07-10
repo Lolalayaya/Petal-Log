@@ -22,6 +22,7 @@ const DEFAULT_SETTINGS = {
   },
   customSymptoms: [],
   symptomColors: {},
+  hiddenSymptoms: [],
 }
 
 function read(key, fallback) {
