@@ -3,7 +3,7 @@
 | 項目 | 內容 |
 |---|---|
 | 專案名稱 | Petal Log |
-| 文件版本 | v1.0 |
+| 文件版本 | v1.4 |
 | 最後更新 | 2026-07-10 |
 | 狀態 | 現行版本（對應已實作功能） |
 
@@ -103,7 +103,8 @@ Pental-Log/
 │   ├── hooks/
 │   │   └── usePeriodData.js       # 資料狀態管理 + 串接領域邏輯
 │   ├── utils/
-│   │   └── cyclePrediction.js     # 週期預測演算法（純函式）
+│   │   ├── cyclePrediction.js     # 週期預測演算法（純函式）
+│   │   └── symptoms.js            # 伴隨症狀選項定義
 │   ├── components/
 │   │   ├── OnboardingFlow/        # 首次使用引導
 │   │   ├── EmptyStateOnboarding/  # 無紀錄時的空狀態
@@ -112,6 +113,7 @@ Pental-Log/
 │   │   ├── QuickRecordModal/      # FAB 快速記錄
 │   │   ├── DayDetail/             # 單日詳情（檢視/編輯/刪除）
 │   │   ├── FlowPicker/            # 經量選擇（量少/中/多）共用元件
+│   │   ├── SymptomPicker/         # 伴隨症狀多選共用元件
 │   │   └── SettingsPanel/         # 設定面板
 │   └── styles/
 │       ├── tokens.css             # 設計 token（顏色/字級/間距/圓角）
@@ -163,14 +165,15 @@ Pental-Log/
 
 | 元件 | 職責 |
 |---|---|
-| `OnboardingFlow` | 二階段引導：詢問是否有歷史紀錄 → 輸入平均經期/週期天數，或直接採用預設值（5 天 / 30 天） |
+| `OnboardingFlow` | 二階段引導：詢問是否有歷史紀錄 → 輸入平均經期/週期天數，或直接採用預設值（5 天 / 28 天） |
 | `EmptyStateOnboarding` | 無任何紀錄時的第一次記錄呼籲（CTA） |
-| `CalendarView` | 月曆格線渲染、月份切換、標示「已記錄日」與「預測日」、點擊進入日詳情 |
-| `PredictionBanner` | 顯示「本次週期第幾天」與「預計下次日期」 |
-| `QuickRecordModal` | 由主畫面 FAB 觸發，快速記錄「今天或指定日期」的經量 |
-| `DayDetail` | 點選日曆某天後的詳情面板，可新增/編輯/刪除當天紀錄，顯示「經期第幾天」 |
+| `CalendarView` | 月曆格線渲染、月份切換、標示「已記錄日」「預測日」「易孕期」「排卵日」與（選配）四階段色條、點擊進入日詳情 |
+| `PredictionBanner` | 顯示「本次週期第幾天／距離下次」「預計下次日期」「易孕期區間」（含免責提示） |
+| `QuickRecordModal` | 由主畫面 FAB 觸發，快速記錄「今天或指定日期」的經量（不含症狀，維持最少點擊） |
+| `DayDetail` | 點選日曆某天後的詳情面板，可新增/編輯/刪除當天紀錄，顯示「經期第幾天」或「排卵日/易孕期」標註，並可選配顯示伴隨症狀記錄區塊 |
 | `FlowPicker` | 「量少 / 量中 / 量多」三選一元件，供 `QuickRecordModal` 與 `DayDetail` 共用 |
-| `SettingsPanel` | 調整平均經期/週期天數、自動填滿開關、中性文字開關、清除所有資料 |
+| `SymptomPicker` | 伴隨症狀多選晶片元件，內建選項定義於 `src/utils/symptoms.js`，可再併入 `settings.customSymptoms`；晶片顏色讀 `settings.symptomColors`（覆寫）或選項的 `defaultColor`；另有「其他」晶片，開啟後顯示自由文字輸入框，寫入 `Record.symptomNote`。供 `DayDetail` 使用 |
+| `SettingsPanel` | 調整平均經期/週期天數、自動填滿開關、中性文字開關、排卵預測顯示開關、四階段顏色開關＋色票、症狀記錄開關、內建與自訂症狀的色票、自訂症狀新增/刪除、清除所有資料 |
 
 ---
 
@@ -180,9 +183,11 @@ Pental-Log/
 
 ```ts
 {
-  id: string      // 產生規則：`${date}-${Date.now()}` 或含 index 後綴
-  date: string     // 'yyyy-MM-dd'
+  id: string          // 產生規則：`${date}-${Date.now()}` 或含 index 後綴
+  date: string         // 'yyyy-MM-dd'
   flow: 'light' | 'medium' | 'heavy'
+  symptoms: string[]   // 伴隨症狀代碼陣列（內建代碼見 `src/utils/symptoms.js`，或自訂症狀的 `custom-<timestamp>` id）；預設 []，自動填滿產生的後續天數不帶入首日症狀
+  symptomNote: string  // 「其他」欄位使用者自行輸入的自由文字；預設 ''，同樣只有首日會帶入
 }
 ```
 
@@ -190,13 +195,29 @@ Pental-Log/
 
 ```ts
 {
-  neutralLanguage: boolean        // 是否使用中性文案（預設 true）
-  avgPeriodLength: number         // 平均經期天數（預設 5）
-  avgCycleLength: number          // 平均週期天數（預設 30）
-  autoFillSubsequentDays: boolean // 記錄首日時是否自動填滿後續天數（預設 true）
-  onboardingCompleted: boolean    // 是否已完成引導（預設 false）
+  neutralLanguage: boolean          // 是否使用中性文案（預設 true）
+  avgPeriodLength: number           // 平均經期天數（預設 5）
+  avgCycleLength: number            // 平均週期天數（預設 28）
+  autoFillSubsequentDays: boolean   // 記錄首日時是否自動填滿後續天數（預設 true）
+  onboardingCompleted: boolean      // 是否已完成引導（預設 false）
+  showOvulationPrediction: boolean  // 是否顯示排卵日/易孕期預測（預設 true）
+  showMenstrualPhase: boolean       // 月曆是否標示月經期顏色（預設 false）
+  showFollicularPhase: boolean      // 月曆是否標示濾泡期顏色（預設 false）
+  showOvulationPhase: boolean       // 月曆是否標示排卵期顏色（預設 false）
+  showLutealPhase: boolean          // 月曆是否標示黃體期顏色（預設 false）
+  showSymptomTracking: boolean      // `DayDetail` 是否顯示伴隨症狀記錄區塊（預設 false）
+  phaseColors: {                    // 四階段各自的顏色（hex），可在設定中用色票調整
+    menstrual: string                 // 預設 '#b5645c'
+    follicular: string                // 預設 '#c98a2b'
+    ovulation: string                 // 預設 '#4f9d8c'
+    luteal: string                    // 預設 '#6f8fb0'
+  }
+  customSymptoms: { id: string, label: string }[]  // 使用者自訂的症狀項目，預設 []，id 格式為 `custom-${Date.now()}`
+  symptomColors: Record<string, string>            // 症狀代碼（含內建與自訂）→ hex 顏色的覆寫表，未設定的內建症狀退回 `SYMPTOM_OPTIONS` 的 `defaultColor`
 }
 ```
+
+> `storage.js` 的 `getSettings()` 讀取時會與 `DEFAULT_SETTINGS` 合併，確保舊版本存下、缺少新欄位的 settings 物件在升級後仍能取得新欄位的預設值。
 
 ### 7.3 儲存 Key
 
@@ -221,17 +242,42 @@ Pental-Log/
 ### 8.2 演算流程
 
 1. **`groupIntoCycles`**：將所有已排序的紀錄日期，依「相鄰日期間隔 ≤ 1 天視為同一次經期」的規則分組成多個「週期（cycle）」，每組記錄起始日、結束日、長度。
-2. **`averageCycleLength`**：若歷史週期數 ≥ 2，取相鄰週期起始日間隔的平均值；否則採用使用者設定值 `avgCycleLength`。
-3. **`averagePeriodLength`**：取「非最新一次」的歷史週期長度平均值（最新一次可能尚未結束，故排除，避免低估）；資料不足時採用設定值 `avgPeriodLength`。
+2. **`averageCycleLength`**：若歷史週期數 ≥ 2，取**最接近現在的最多 `MAX_CYCLES_FOR_AVERAGE`（6）次**週期起始日間隔的平均值；否則採用使用者設定值 `avgCycleLength`。超過 6 次的較舊紀錄不再納入計算，讓平均值更貼近近期實際狀況。
+3. **`averagePeriodLength`**：取「非最新一次」歷史週期中，**最接近現在的最多 6 次**長度平均值（最新一次可能尚未結束，故排除，避免低估）；資料不足時採用設定值 `avgPeriodLength`。
 4. **`nextPredictedDate`**：最近一次週期起始日 + 平均週期天數。
 5. **`currentCycleDay`**：找出「今天以前（含今天）已開始」的最後一個週期，計算今天是該週期第幾天。此設計刻意排除未來日期的週期，避免使用者手動輸入未來紀錄時，「今天」找不到對應週期而顯示消失。
-6. **`predictedDates`**：以 `nextPredictedDate` 為起點，往後推 `averagePeriodLength` 天，標記為日曆上的「預測日」；若使用者關閉自動填滿且目前正處於一次經期中，會額外補上「本次週期尚未記錄但理論上應落在經期內」的天數，讓預測與實際填寫方式保持一致。
+6. **`isPeriodActive`**：判斷「今天」是否落在最近一次連續紀錄範圍（`referenceCycle.startDate` ~ `referenceCycle.lastDate`）內，代表生理期是否仍在進行。
+7. **`daysUntilNextPeriod`**：`nextPredictedDate` 與今天的天數差，可能為負值（代表已超過預計天數，週期延遲）。`PredictionBanner` 依 `isPeriodActive` 決定首個卡片顯示「本次週期第幾天」（進行中）或「距離下次還有幾天」（已結束），避免生理期結束後仍顯示令人困惑的週期天數。
+8. **`predictedDates`**：以 `nextPredictedDate` 為起點，往後推 `averagePeriodLength` 天，標記為日曆上的「預測日」；若使用者關閉自動填滿且目前正處於一次經期中，會額外補上「本次週期尚未記錄但理論上應落在經期內」的天數，讓預測與實際填寫方式保持一致。
 
 ### 8.3 邊界情況
 
 - 無任何紀錄：回傳 `hasData: false`，UI 顯示 `EmptyStateOnboarding`，不顯示 `PredictionBanner`。
 - 只有一次週期紀錄：`averageCycleLength`／`averagePeriodLength` 退回使用者設定值。
 - 演算法目前**不排除異常值**（例如使用者手誤造成的極端週期天數會直接拉進平均值）——已知限制，見第 13 章。
+
+### 8.4 排卵與易孕期預測
+
+`getCyclePrediction` 在算出 `nextPredictedDate` 後，會額外呼叫內部函式 `getFertilityPrediction(nextPredictedDate)`，以「日曆推算法」的通用假設回推：
+
+- **排卵日（`ovulationDate`）**：假設黃體期固定為 14 天，即 `nextPredictedDate - 14 天`。
+- **易孕期（`fertileWindowStart` ~ `fertileWindowEnd`）**：涵蓋精子存活時間（排卵前 5 天）與卵子存活時間（排卵後 1 天），即 `[排卵日 - 5, 排卵日 + 1]`。
+- `fertileWindowDates`：易孕期區間內每一天的日期字串陣列，供 `CalendarView` 標記使用。
+
+**已知限制**：此為標準日曆推算估計值，**非醫療診斷**，週期不規律的使用者準確度會明顯下降；短週期（如 `avgCycleLength` 接近 15 天下限）時，回推的易孕期可能與經期日重疊。UI 於 `PredictionBanner` 固定顯示免責提示文字。`showOvulationPrediction` 設定為 `false` 時，`App.jsx` 不會把 `fertileWindowDates`／`ovulationDate` 傳入 `CalendarView`／`PredictionBanner`／`DayDetail`，達成選配（opt-in／opt-out）效果。
+
+### 8.5 週期四階段（月經期／濾泡期／排卵期／黃體期）
+
+`getCyclePhases(cycleStartDate, averagePeriodLength, ovulationDate, nextPredictedDate)` 將**最近一次週期起始日**到**下次預計週期起始日前一天**（正好一個完整 `averageCycleLength`）依生理定義切成四段：
+
+| 階段 | 區間 | 預設顏色（`settings.phaseColors`） |
+|---|---|---|
+| 月經期 `menstrualPhaseDates` | `cycleStartDate` ~ `cycleStartDate + averagePeriodLength - 1` | `menstrual` = `#b5645c` |
+| 濾泡期 `follicularPhaseDates` | 月經期結束隔天 ~ 排卵日前一天 | `follicular` = `#c98a2b` |
+| 排卵期 `ovulationPhaseDates` | 僅 `ovulationDate` 當天 | `ovulation` = `#4f9d8c` |
+| 黃體期 `lutealPhaseDates` | 排卵日隔天 ~ 下次預計週期前一天 | `luteal` = `#6f8fb0` |
+
+任一區間若起訖日反轉（如經期天數過長導致濾泡期被壓縮為 0 天）則回傳空陣列，`getDateRange` 內建此保護。四個階段各自對應一個 `Settings` 開關（`showMenstrualPhase` 等），預設皆為 `false`（opt-in）；`App.jsx` 只在對應開關開啟時才把日期陣列傳給 `CalendarView`，首頁 `PredictionBanner` 不顯示這四個階段的文字說明，僅在月曆日格上方以一條 3px 色條標示（`CalendarView.module.css` 的 `.phaseIndicator`，用 inline `style` 套用 `settings.phaseColors` 而非固定 CSS class），與底部既有的易孕期／排卵日圓點（見 8.4）分開，避免視覺重疊。每個階段的顏色可在 `SettingsPanel` 用 `<input type="color">` 個別調整，寫回 `settings.phaseColors[phase]`。
 
 ---
 
@@ -262,8 +308,11 @@ flowchart LR
 
 定義於 `src/styles/tokens.css`，供作品集展示參考：
 
-- **主色 Rose**（`#b5645c` 系）：代表「已記錄的經期日」。
-- **輔色 Lavender**（`#9b8ac4` 系）：代表「預測日」。
+- **主色 Rose**（`#b5645c` 系）：代表「已記錄的經期日」，也是四階段色條「月經期」的預設色。
+- **輔色 Lavender**（`#9b8ac4` 系）：代表「預測日」，也是 `SymptomPicker`「其他」晶片與自訂症狀的預設色。
+- **點綴色 Mint**（`#4f9d8c` 系）：代表「易孕期／排卵日」，也是四階段色條「排卵期」的預設色，與 Rose/Lavender 區隔以降低誤讀風險。
+- **階段色 Amber**（`#c98a2b` 系）／**Slate**（`#6f8fb0` 系）：分別是四階段色條「濾泡期」與「黃體期」的預設色，僅在 `SettingsPanel` 個別開啟對應開關時才會出現在月曆上。
+- **症狀色**：`src/utils/symptoms.js` 為 10 個內建症狀各指定一個 `defaultColor`（延伸自上述色系的低飽和變體）；四階段與所有症狀（含自訂）的顏色都**不是寫死的 token**，而是存在 `settings.phaseColors`／`settings.symptomColors`，可在 `SettingsPanel` 用原生 `<input type="color">` 色票逐一調整，`CalendarView`／`SymptomPicker` 皆以 inline `style` 套用實際值，token 只作為兩者的預設值來源。
 - **中性色**：米白底（`#fbf6f3`）+ 深棕字（`#453936`），營造柔和、低刺激的視覺氛圍，符合健康記錄類產品的情緒基調。
 - **字型**：中文用 Noto Sans TC / PingFang TC；數字（日期）用 Inter，強化日曆數字的辨識度。
 - **圓角與陰影**：卡片/面板使用 `16px` 圓角與柔和陰影，Modal 皆以 bottom-sheet 形式呈現，符合行動裝置操作習慣。
@@ -364,3 +413,7 @@ flowchart LR
 | 版本 | 日期 | 說明 |
 |---|---|---|
 | v1.0 | 2026-07-10 | 首版，涵蓋現行架構與已知未來規劃 |
+| v1.1 | 2026-07-10 | 新增排卵日／易孕期預測功能（`cyclePrediction.js` 的 `getFertilityPrediction`、`showOvulationPrediction` 設定、對應 UI 標示與免責提示） |
+| v1.2 | 2026-07-10 | `PredictionBanner` 首個卡片改依 `isPeriodActive` 切換顯示內容：生理期進行中顯示「本次週期第幾天」，結束後改顯示「距離下次生理期還有幾天」 |
+| v1.3 | 2026-07-10 | 1) 預設週期天數 30→28 天；2) `averageCycleLength`／`averagePeriodLength` 改為只取最近 6 次週期計算（`MAX_CYCLES_FOR_AVERAGE`）；3) 新增月經期/濾泡期/排卵期/黃體期四階段計算（`getCyclePhases`）與月曆色條標示，各階段獨立 opt-in 設定開關；4) 新增伴隨症狀記錄（`Record.symptoms`、`SymptomPicker`、`showSymptomTracking` 開關） |
+| v1.4 | 2026-07-10 | 1) `SymptomPicker` 新增「其他」晶片＋自由文字輸入（`Record.symptomNote`）；2) 新增 `settings.customSymptoms`，可在 `SettingsPanel` 新增/刪除自訂症狀，與內建症狀併入同一個選單；3) 四階段顏色與症狀顏色（含自訂症狀）皆從寫死的 CSS token 改為 `settings.phaseColors`／`settings.symptomColors`，可在 `SettingsPanel` 用色票個別調整，`CalendarView`／`SymptomPicker` 改用 inline style 套用 |

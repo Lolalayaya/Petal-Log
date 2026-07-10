@@ -1,10 +1,25 @@
 import { useState } from 'react'
 import { format, parseISO } from 'date-fns'
 import { FlowPicker } from '../FlowPicker/FlowPicker'
+import { SymptomPicker } from '../SymptomPicker/SymptomPicker'
 import styles from './DayDetail.module.css'
 
-export function DayDetail({ date, record, dayOfPeriod, onClose, onSave, onDelete, label = '記錄' }) {
+export function DayDetail({
+  date,
+  record,
+  dayOfPeriod,
+  fertilityStatus,
+  showSymptomTracking = false,
+  customSymptoms = [],
+  symptomColors = {},
+  onClose,
+  onSave,
+  onDelete,
+  label = '記錄',
+}) {
   const [flow, setFlow] = useState(record ? record.flow : 'medium')
+  const [symptoms, setSymptoms] = useState(record?.symptoms ?? [])
+  const [symptomNote, setSymptomNote] = useState(record?.symptomNote ?? '')
 
   if (!date) return null
 
@@ -19,11 +34,27 @@ export function DayDetail({ date, record, dayOfPeriod, onClose, onSave, onDelete
         ) : (
           <p className={styles.subLabel}>{label}</p>
         )}
+        {fertilityStatus === 'ovulation' && <p className={styles.fertilityNote}>預測排卵日</p>}
+        {fertilityStatus === 'fertile' && <p className={styles.fertilityNote}>預測易孕期</p>}
 
         <div className={styles.field}>
           <span className={styles.fieldLabel}>經量</span>
           <FlowPicker value={flow} onChange={setFlow} />
         </div>
+
+        {showSymptomTracking && (
+          <div className={styles.field}>
+            <span className={styles.fieldLabel}>伴隨症狀</span>
+            <SymptomPicker
+              value={symptoms}
+              onChange={setSymptoms}
+              note={symptomNote}
+              onNoteChange={setSymptomNote}
+              customSymptoms={customSymptoms}
+              symptomColors={symptomColors}
+            />
+          </div>
+        )}
 
         <div className={styles.actions}>
           {record && (
@@ -42,7 +73,7 @@ export function DayDetail({ date, record, dayOfPeriod, onClose, onSave, onDelete
             type="button"
             className={styles.saveButton}
             onClick={() => {
-              onSave(date, flow)
+              onSave(date, flow, symptoms, symptomNote)
               onClose()
             }}
           >

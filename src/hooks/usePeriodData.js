@@ -24,10 +24,10 @@ export function usePeriodData() {
 
   const prediction = useMemo(() => getCyclePrediction(records, settings), [records, settings])
 
-  const recordDay = useCallback((date, flow) => {
+  const recordDay = useCallback((date, flow, symptoms = [], symptomNote = '') => {
     const existing = recordByDate.get(date)
     if (existing) {
-      setRecords(addRecordToStorage({ id: existing.id, date, flow }))
+      setRecords(addRecordToStorage({ id: existing.id, date, flow, symptoms, symptomNote }))
       return
     }
 
@@ -38,13 +38,19 @@ export function usePeriodData() {
       const periodLength = prediction.averagePeriodLength || settings.avgPeriodLength
       const newRecords = Array.from({ length: periodLength }, (_, i) => {
         const d = format(addDays(parseISO(date), i), 'yyyy-MM-dd')
-        return { id: `${d}-${Date.now()}-${i}`, date: d, flow }
+        return {
+          id: `${d}-${Date.now()}-${i}`,
+          date: d,
+          flow,
+          symptoms: i === 0 ? symptoms : [],
+          symptomNote: i === 0 ? symptomNote : '',
+        }
       })
       setRecords(addRecordsToStorage(newRecords))
       return
     }
 
-    setRecords(addRecordToStorage({ id: `${date}-${Date.now()}`, date, flow }))
+    setRecords(addRecordToStorage({ id: `${date}-${Date.now()}`, date, flow, symptoms, symptomNote }))
   }, [recordByDate, settings, prediction])
 
   const editRecord = useCallback((id, patch) => {

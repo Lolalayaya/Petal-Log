@@ -1,7 +1,10 @@
+.wrapper {
+  margin-bottom: var(--space-md);
+}
+
 .banner {
   display: flex;
   gap: var(--space-lg);
-  margin-bottom: var(--space-md);
 }
 
 .stat {
@@ -27,4 +30,20 @@
   font-size: var(--font-size-caption);
   color: var(--color-text-secondary);
   margin-top: var(--space-xs);
+}
+
+.statMint {
+  background: var(--color-mint-100);
+}
+
+.valueMint {
+  font-size: var(--font-size-h2);
+  color: var(--color-mint-600);
+}
+
+.disclaimer {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-sm);
+  text-align: center;
 }

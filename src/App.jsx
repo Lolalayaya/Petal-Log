@@ -58,7 +58,7 @@ export default function App() {
       {records.length === 0 ? (
         <EmptyStateOnboarding onStart={() => setQuickRecordOpen(true)} />
       ) : (
-        <PredictionBanner prediction={prediction} />
+        <PredictionBanner prediction={prediction} showOvulationPrediction={settings.showOvulationPrediction} />
       )}
 
       <CalendarView
@@ -66,6 +66,13 @@ export default function App() {
         onMonthChange={setCurrentMonth}
         recordByDate={recordByDate}
         predictedDates={prediction.predictedDates}
+        fertileWindowDates={settings.showOvulationPrediction ? prediction.fertileWindowDates : []}
+        ovulationDate={settings.showOvulationPrediction ? prediction.ovulationDate : null}
+        menstrualPhaseDates={settings.showMenstrualPhase ? prediction.menstrualPhaseDates : []}
+        follicularPhaseDates={settings.showFollicularPhase ? prediction.follicularPhaseDates : []}
+        ovulationPhaseDates={settings.showOvulationPhase ? prediction.ovulationPhaseDates : []}
+        lutealPhaseDates={settings.showLutealPhase ? prediction.lutealPhaseDates : []}
+        phaseColors={settings.phaseColors}
         onSelectDay={setSelectedDate}
       />
 
@@ -85,6 +92,18 @@ export default function App() {
         date={selectedDate}
         record={selectedDate ? recordByDate.get(selectedDate) : null}
         dayOfPeriod={selectedDate ? getDayOfPeriod(records, selectedDate) : null}
+        fertilityStatus={
+          settings.showOvulationPrediction && selectedDate
+            ? selectedDate === prediction.ovulationDate
+              ? 'ovulation'
+              : prediction.fertileWindowDates.includes(selectedDate)
+                ? 'fertile'
+                : null
+            : null
+        }
+        showSymptomTracking={settings.showSymptomTracking}
+        customSymptoms={settings.customSymptoms}
+        symptomColors={settings.symptomColors}
         onClose={() => setSelectedDate(null)}
         onSave={recordDay}
         onDelete={removeRecord}

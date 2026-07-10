@@ -1,6 +1,17 @@
+import { useState } from 'react'
+import { SYMPTOM_OPTIONS, CUSTOM_SYMPTOM_COLOR_PALETTE } from '../../utils/symptoms'
 import styles from './SettingsPanel.module.css'
 
+const PHASES = [
+  { key: 'menstrual', label: '月經期', toggleKey: 'showMenstrualPhase' },
+  { key: 'follicular', label: '濾泡期', toggleKey: 'showFollicularPhase' },
+  { key: 'ovulation', label: '排卵期', toggleKey: 'showOvulationPhase' },
+  { key: 'luteal', label: '黃體期', toggleKey: 'showLutealPhase' },
+]
+
 export function SettingsPanel({ isOpen, settings, onClose, onUpdateSettings, onResetAllData }) {
+  const [newSymptomLabel, setNewSymptomLabel] = useState('')
+
   if (!isOpen) return null
 
   const handleReset = () => {
@@ -10,6 +21,40 @@ export function SettingsPanel({ isOpen, settings, onClose, onUpdateSettings, onR
       onClose()
     }
   }
+
+  const updatePhaseColor = (phase, color) => {
+    onUpdateSettings({ phaseColors: { ...settings.phaseColors, [phase]: color } })
+  }
+
+  const updateSymptomColor = (symptomKey, color) => {
+    onUpdateSettings({ symptomColors: { ...settings.symptomColors, [symptomKey]: color } })
+  }
+
+  const addCustomSymptom = () => {
+    const label = newSymptomLabel.trim()
+    if (!label) return
+    const id = `custom-${Date.now()}`
+    const usedColors = settings.customSymptoms.length
+    const color = CUSTOM_SYMPTOM_COLOR_PALETTE[usedColors % CUSTOM_SYMPTOM_COLOR_PALETTE.length]
+    onUpdateSettings({
+      customSymptoms: [...settings.customSymptoms, { id, label }],
+      symptomColors: { ...settings.symptomColors, [id]: color },
+    })
+    setNewSymptomLabel('')
+  }
+
+  const removeCustomSymptom = (id) => {
+    const { [id]: _removed, ...restColors } = settings.symptomColors
+    onUpdateSettings({
+      customSymptoms: settings.customSymptoms.filter((s) => s.id !== id),
+      symptomColors: restColors,
+    })
+  }
+
+  const allSymptomsForColor = [
+    ...SYMPTOM_OPTIONS,
+    ...settings.customSymptoms.map((s) => ({ value: s.id, label: s.label, defaultColor: '#9b8ac4' })),
+  ]
 
   return (
     <div className={styles.overlay} onClick={onClose}>
@@ -57,6 +102,101 @@ export function SettingsPanel({ isOpen, settings, onClose, onUpdateSettings, onR
             onChange={(e) => onUpdateSettings({ neutralLanguage: e.target.checked })}
           />
         </label>
+
+        <label className={styles.row}>
+          <span>顯示排卵日與易孕期預測</span>
+          <input
+            type="checkbox"
+            checked={settings.showOvulationPrediction}
+            onChange={(e) => onUpdateSettings({ showOvulationPrediction: e.target.checked })}
+          />
+        </label>
+
+        <div className={styles.sectionLabel}>週期階段顏色提示（月曆上標示）</div>
+
+        {PHASES.map((phase) => (
+          <div key={phase.key} className={styles.row}>
+            <span
+              className={styles.clickableLabel}
+              onClick={() => onUpdateSettings({ [phase.toggleKey]: !settings[phase.toggleKey] })}
+            >
+              {phase.label}
+            </span>
+            <span className={styles.rowControls}>
+              <input
+                type="color"
+                value={settings.phaseColors[phase.key]}
+                onChange={(e) => updatePhaseColor(phase.key, e.target.value)}
+                className={styles.colorInput}
+                aria-label={`${phase.label}顏色`}
+              />
+              <input
+                type="checkbox"
+                checked={settings[phase.toggleKey]}
+                onChange={(e) => onUpdateSettings({ [phase.toggleKey]: e.target.checked })}
+              />
+            </span>
+          </div>
+        ))}
+
+        <label className={styles.row}>
+          <span>記錄伴隨症狀</span>
+          <input
+            type="checkbox"
+            checked={settings.showSymptomTracking}
+            onChange={(e) => onUpdateSettings({ showSymptomTracking: e.target.checked })}
+          />
+        </label>
+
+        {settings.showSymptomTracking && (
+          <>
+            <div className={styles.sectionLabel}>症狀顏色</div>
+            {allSymptomsForColor.map((symptom) => (
+              <label key={symptom.value} className={styles.row}>
+                <span>{symptom.label}</span>
+                <input
+                  type="color"
+                  value={settings.symptomColors[symptom.value] || symptom.defaultColor}
+                  onChange={(e) => updateSymptomColor(symptom.value, e.target.value)}
+                  className={styles.colorInput}
+                  aria-label={`${symptom.label}顏色`}
+                />
+              </label>
+            ))}
+
+            <div className={styles.sectionLabel}>自訂症狀</div>
+            {settings.customSymptoms.map((symptom) => (
+              <div key={symptom.id} className={styles.row}>
+                <span>{symptom.label}</span>
+                <button
+                  type="button"
+                  className={styles.smallDeleteButton}
+                  onClick={() => removeCustomSymptom(symptom.id)}
+                >
+                  移除
+                </button>
+              </div>
+            ))}
+            <div className={styles.addSymptomRow}>
+              <input
+                type="text"
+                value={newSymptomLabel}
+                onChange={(e) => setNewSymptomLabel(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    addCustomSymptom()
+                  }
+                }}
+                placeholder="新增症狀名稱"
+                className={styles.textInput}
+              />
+              <button type="button" className={styles.addButton} onClick={addCustomSymptom}>
+                新增
+              </button>
+            </div>
+          </>
+        )}
 
         <button type="button" className={styles.dangerButton} onClick={handleReset}>
           清除所有本機紀錄

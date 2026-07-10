@@ -8,6 +8,19 @@
   --color-lavender-500: #9b8ac4;
   --color-lavender-100: #ebe6f5;
 
+  /* Mint — 點綴色，易孕期／排卵日 */
+  --color-mint-600: #4f9d8c;
+  --color-mint-300: #a8d8cc;
+  --color-mint-100: #e4f4f0;
+
+  /* Amber — 週期階段色，濾泡期 */
+  --color-amber-600: #c98a2b;
+  --color-amber-300: #e8c88f;
+
+  /* Slate — 週期階段色，黃體期 */
+  --color-slate-600: #6f8fb0;
+  --color-slate-300: #b7c8db;
+
   /* Neutrals */
   --color-bg: #fbf6f3;
   --color-surface: #ffffff;

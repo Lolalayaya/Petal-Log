@@ -37,6 +37,13 @@
   margin-top: calc(var(--space-xs) * -1);
 }
 
+.fertilityNote {
+  font-size: var(--font-size-caption);
+  font-weight: 600;
+  color: var(--color-mint-600);
+  margin-top: calc(var(--space-xs) * -1);
+}
+
 .field {
   display: flex;
   flex-direction: column;

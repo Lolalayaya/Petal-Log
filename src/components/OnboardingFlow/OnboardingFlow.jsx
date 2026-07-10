@@ -4,7 +4,7 @@ import styles from './OnboardingFlow.module.css'
 export function OnboardingFlow({ onComplete }) {
   const [step, setStep] = useState('ask')
   const [periodLength, setPeriodLength] = useState('5')
-  const [cycleLength, setCycleLength] = useState('30')
+  const [cycleLength, setCycleLength] = useState('28')
 
   if (step === 'ask') {
     return (
@@ -18,7 +18,7 @@ export function OnboardingFlow({ onComplete }) {
           <button
             type="button"
             className={styles.secondaryButton}
-            onClick={() => onComplete({ avgPeriodLength: 5, avgCycleLength: 30 })}
+            onClick={() => onComplete({ avgPeriodLength: 5, avgCycleLength: 28 })}
           >
             沒有，先用預設值
           </button>
@@ -61,7 +61,7 @@ export function OnboardingFlow({ onComplete }) {
         onClick={() =>
           onComplete({
             avgPeriodLength: Number(periodLength) || 5,
-            avgCycleLength: Number(cycleLength) || 30,
+            avgCycleLength: Number(cycleLength) || 28,
           })
         }
       >

@@ -15,7 +15,27 @@ import styles from './CalendarView.module.css'
 
 const WEEKDAY_LABELS = ['日', '一', '二', '三', '四', '五', '六']
 
-export function CalendarView({ currentMonth, onMonthChange, recordByDate, predictedDates, onSelectDay }) {
+const DEFAULT_PHASE_COLORS = {
+  menstrual: '#b5645c',
+  follicular: '#c98a2b',
+  ovulation: '#4f9d8c',
+  luteal: '#6f8fb0',
+}
+
+export function CalendarView({
+  currentMonth,
+  onMonthChange,
+  recordByDate,
+  predictedDates,
+  fertileWindowDates = [],
+  ovulationDate = null,
+  menstrualPhaseDates = [],
+  follicularPhaseDates = [],
+  ovulationPhaseDates = [],
+  lutealPhaseDates = [],
+  phaseColors = DEFAULT_PHASE_COLORS,
+  onSelectDay,
+}) {
   const days = useMemo(() => {
     const start = startOfWeek(startOfMonth(currentMonth))
     const end = endOfWeek(endOfMonth(currentMonth))
@@ -23,6 +43,16 @@ export function CalendarView({ currentMonth, onMonthChange, recordByDate, predic
   }, [currentMonth])
 
   const predictedDateSet = useMemo(() => new Set(predictedDates), [predictedDates])
+  const fertileDateSet = useMemo(() => new Set(fertileWindowDates), [fertileWindowDates])
+
+  const phaseByDate = useMemo(() => {
+    const map = new Map()
+    menstrualPhaseDates.forEach((d) => map.set(d, 'menstrual'))
+    follicularPhaseDates.forEach((d) => map.set(d, 'follicular'))
+    ovulationPhaseDates.forEach((d) => map.set(d, 'ovulation'))
+    lutealPhaseDates.forEach((d) => map.set(d, 'luteal'))
+    return map
+  }, [menstrualPhaseDates, follicularPhaseDates, ovulationPhaseDates, lutealPhaseDates])
 
   return (
     <div className={styles.calendar}>
@@ -59,7 +89,10 @@ export function CalendarView({ currentMonth, onMonthChange, recordByDate, predic
           const dateStr = format(day, 'yyyy-MM-dd')
           const record = recordByDate.get(dateStr)
           const isPredicted = predictedDateSet.has(dateStr)
+          const isOvulation = dateStr === ovulationDate
+          const isFertile = fertileDateSet.has(dateStr) && !isOvulation
           const inMonth = isSameMonth(day, currentMonth)
+          const phase = phaseByDate.get(dateStr)
 
           return (
             <button
@@ -76,7 +109,16 @@ export function CalendarView({ currentMonth, onMonthChange, recordByDate, predic
                 .filter(Boolean)
                 .join(' ')}
             >
+              {phase && (
+                <span
+                  className={styles.phaseIndicator}
+                  style={{ background: phaseColors[phase] }}
+                  aria-hidden="true"
+                />
+              )}
               {format(day, 'd')}
+              {isOvulation && <span className={styles.ovulationMarker} aria-hidden="true" />}
+              {isFertile && <span className={styles.fertileMarker} aria-hidden="true" />}
             </button>
           )
         })}

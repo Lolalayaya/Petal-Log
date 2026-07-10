@@ -47,6 +47,7 @@
 }
 
 .day {
+  position: relative;
   aspect-ratio: 1;
   border: none;
   background: transparent;
@@ -74,4 +75,36 @@
 
 .dayToday {
   box-shadow: inset 0 0 0 2px var(--color-rose-600);
+}
+
+.fertileMarker {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-mint-300);
+}
+
+.phaseIndicator {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 14px;
+  height: 3px;
+  border-radius: var(--radius-pill);
+}
+
+.ovulationMarker {
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-mint-600);
 }

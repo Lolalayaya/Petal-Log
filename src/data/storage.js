@@ -4,9 +4,23 @@ const SETTINGS_KEY = 'petal-log:settings'
 const DEFAULT_SETTINGS = {
   neutralLanguage: true,
   avgPeriodLength: 5,
-  avgCycleLength: 30,
+  avgCycleLength: 28,
   autoFillSubsequentDays: true,
   onboardingCompleted: false,
+  showOvulationPrediction: true,
+  showMenstrualPhase: false,
+  showFollicularPhase: false,
+  showOvulationPhase: false,
+  showLutealPhase: false,
+  showSymptomTracking: false,
+  phaseColors: {
+    menstrual: '#b5645c',
+    follicular: '#c98a2b',
+    ovulation: '#4f9d8c',
+    luteal: '#6f8fb0',
+  },
+  customSymptoms: [],
+  symptomColors: {},
 }
 
 function read(key, fallback) {
@@ -55,7 +69,8 @@ export function deleteRecord(id) {
 }
 
 export function getSettings() {
-  return read(SETTINGS_KEY, DEFAULT_SETTINGS)
+  // 與預設值合併，避免舊版本存下的 settings 缺少新增欄位而變成 undefined。
+  return { ...DEFAULT_SETTINGS, ...read(SETTINGS_KEY, {}) }
 }
 
 export function saveSettings(settings) {
