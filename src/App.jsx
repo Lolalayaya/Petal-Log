@@ -30,8 +30,6 @@ export default function App() {
   const [isSettingsOpen, setSettingsOpen] = useState(false)
   const [isReportOpen, setReportOpen] = useState(false)
 
-  const recordLabel = settings.neutralLanguage ? '記錄' : '經期記錄'
-
   if (!settings.onboardingCompleted) {
     return (
       <div className={styles.app}>
@@ -96,14 +94,13 @@ export default function App() {
       />
 
       <button type="button" className={styles.fab} onClick={() => setQuickRecordOpen(true)}>
-        + {recordLabel}
+        + 記錄
       </button>
 
       <QuickRecordModal
         isOpen={isQuickRecordOpen}
         onClose={() => setQuickRecordOpen(false)}
         onSave={recordDay}
-        label={recordLabel}
       />
 
       <DayDetail
@@ -127,7 +124,6 @@ export default function App() {
         onClose={() => setSelectedDate(null)}
         onSave={recordDay}
         onDelete={removeRecord}
-        label={recordLabel}
       />
 
       <SettingsPanel

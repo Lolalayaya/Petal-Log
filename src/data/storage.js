@@ -2,7 +2,6 @@ const RECORDS_KEY = 'petal-log:records'
 const SETTINGS_KEY = 'petal-log:settings'
 
 const DEFAULT_SETTINGS = {
-  neutralLanguage: true,
   avgPeriodLength: 5,
   avgCycleLength: 28,
   autoFillSubsequentDays: true,
