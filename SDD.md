@@ -3,7 +3,7 @@
 | 項目 | 內容 |
 |---|---|
 | 專案名稱 | Petal Log |
-| 文件版本 | v1.9 |
+| 文件版本 | v1.10 |
 | 最後更新 | 2026-07-10 |
 | 狀態 | 現行版本（對應已實作功能） |
 
@@ -120,7 +120,7 @@ Pental-Log/
 │   └── styles/
 │       ├── tokens.css             # 設計 token（顏色/字級/間距/圓角）
 │       └── global.css             # 全域樣式
-└── vite.config.js                 # base: '/Petal-Log/'
+└── vite.config.js                 # CI 用 base '/Petal-Log/'＋ESM；本機用相對路徑＋IIFE，讓 dist/index.html 可雙擊開啟（見第 12 章）
 ```
 
 ---
@@ -373,8 +373,10 @@ flowchart LR
 ## 12. 部署與 CI/CD
 
 - **流程**：push 到 `main` 分支 → GitHub Actions（`.github/workflows/deploy.yml`）執行 `npm ci && npm run build` → 產出的 `dist/` 上傳為 Pages artifact → 部署到 GitHub Pages。
-- **Base path**：`vite.config.js` 設定 `base: '/Petal-Log/'`，對應 GitHub Pages 的 repo 子路徑託管方式。
 - **無測試關卡**：目前 CI 只做 build，沒有 lint / 單元測試步驟（見第 13 章已知限制）。
+- **雙重建置模式**：`vite.config.js` 以 GitHub Actions 自動設定的 `CI` 環境變數區分兩種建置結果：
+  - **CI（`CI=true`，GitHub Pages）**：`base: '/Petal-Log/'`（對應 repo 子路徑），輸出標準 ES module（`<script type="module">`），走 http(s) 協定不受檔案協定限制。
+  - **本機（未設定 `CI`）**：`base: './'`（相對路徑）；`build.rollupOptions.output.format` 改為 `'iife'`，打成單一傳統 script；自訂的 `localFileOpenHtml` 外掛（`transformIndexHtml`）把輸出 HTML 的 `type="module"` 換成 `defer`、移除 `crossorigin` 屬性。這是因為用瀏覽器直接以 `file://` 開啟 `dist/index.html` 時，Chrome 會以「origin 是 null」擋掉 `type="module"` 與帶 `crossorigin` 資源的 CORS 請求，導致空白頁；改成傳統 `<script defer>` 就能繞開此限制，讓 `npm run build` 產出的 `dist/index.html` 可以直接雙擊在瀏覽器開啟，不需要跑任何伺服器或指令。兩種模式產出的功能完全一致，只有打包格式與路徑不同。
 
 ---
 
@@ -449,3 +451,4 @@ flowchart LR
 | v1.7 | 2026-07-11 | `SettingsPanel` 症狀設定改為手風琴（預設收起，展開才顯示「症狀項目與顏色設定」清單），並新增 `settings.hiddenSymptoms`：可個別關閉內建症狀在 `SymptomPicker` 的顯示，不影響歷史紀錄或報表統計 |
 | v1.8 | 2026-07-11 | `SettingsPanel` 的「週期階段顏色提示」比照症狀設定，同樣改為手風琴（預設收起，展開才顯示四階段開關＋色票），讓設定面板預設更精簡 |
 | v1.9 | 2026-07-11 | 移除 `neutralLanguage` 設定：實際影響範圍僅 FAB／快速記錄／日詳情等少數按鈕文字，且中性化本來就是預設值，改為固定行為，不再是可關閉的開關。`SettingsPanel` 移除對應開關；`App.jsx` 的 `recordLabel` 變數移除，改用元件既有的 `'記錄'` 預設值 |
+| v1.10 | 2026-07-14 | `vite.config.js` 改為依 `CI` 環境變數區分兩種建置：本機建置輸出相對路徑＋IIFE 傳統 script（並用自訂外掛移除 `type="module"`／`crossorigin`），讓 `npm run build` 產出的 `dist/index.html` 可以直接雙擊在瀏覽器開啟；CI（GitHub Pages）建置行為不變 |
