@@ -3,8 +3,8 @@
 | 項目 | 內容 |
 |---|---|
 | 專案名稱 | Petal Log |
-| 文件版本 | v1.10 |
-| 最後更新 | 2026-07-10 |
+| 文件版本 | v1.11 |
+| 最後更新 | 2026-07-18 |
 | 狀態 | 現行版本（對應已實作功能） |
 
 ---
@@ -16,7 +16,7 @@ Petal Log 是一款以隱私為優先設計的經期記錄網頁應用（Web App
 **核心定位**
 
 - **輕量、免帳號、免安裝**：開啟網頁即可使用，無需註冊。
-- **資料留在本機**：所有紀錄僅存於瀏覽器 `localStorage`，不上傳任何伺服器。
+- **資料預設留在本機**：所有紀錄預設僅存於瀏覽器 `localStorage`，不上傳任何伺服器；v1.11 起新增**選配**的雲端同步（見第 15 章），需使用者主動啟用才會有資料離開本機，不啟用者行為與過去完全相同。
 - **中性化設計**：介面文案固定採用中性字眼（如「記錄」取代「經期記錄」），在他人瞥見螢幕時降低隱私暴露風險；v1.9 前曾提供可關閉的開關，但因實際影響範圍極小（僅少數按鈕文字）且中性化本來就是預設值，已簡化為固定行為，不再是使用者可調整的設定。
 - **低操作成本**：從開啟 App 到完成一筆記錄，最少只需兩次點擊（FAB → 選經量 → 儲存）。
 
@@ -30,12 +30,12 @@ Petal Log 是一款以隱私為優先設計的經期記錄網頁應用（Web App
 2. 提供「目前週期第幾天」與「預計下次日期」兩項核心預測資訊。
 3. 完整支援紀錄的新增、檢視、修改、刪除（CRUD）。
 4. 首次使用時透過 Onboarding 蒐集歷史週期資訊，加速預測準確度收斂。
-5. 純前端、零後端依賴，可靜態託管於 GitHub Pages。
+5. 純前端為預設形態，零後端依賴，可靜態託管於 GitHub Pages；v1.11 起可選配啟用雲端同步。
+6.（v1.11）在不引入傳統帳號密碼註冊流程的前提下，提供跨裝置同步與資料備份能力（見第 15 章）。
 
 ### 2.2 非目標（現階段不處理）
 
-- 不做多使用者帳號系統與登入機制。
-- 不做跨裝置資料同步（見第 14 章未來規劃）。
+- 不做傳統帳號密碼註冊流程與個人資料頁（v1.11 雲端同步改採免帳號的「同步碼」機制，見第 15 章；技術上仍借用 Supabase Auth，但使用者體感上沒有註冊/登入這件事）。
 - 不記錄經量以外的健康資訊（症狀、心情、體溫等）。
 - 不做原生 App（iOS / Android）封裝。
 
@@ -43,7 +43,7 @@ Petal Log 是一款以隱私為優先設計的經期記錄網頁應用（Web App
 
 ## 3. 系統架構
 
-Petal Log 是一個純前端單頁應用（SPA），沒有後端服務。所有狀態管理與資料持久化都在瀏覽器內完成。
+Petal Log 預設是一個純前端單頁應用（SPA），沒有後端服務，所有狀態管理與資料持久化都在瀏覽器內完成。v1.11 新增一層**選配**的雲端同步（`useCloudSync` / `syncManager.js` / `cloudAdapter.js`），只有使用者主動啟用時才會介入，本機資料流完全不受影響。
 
 ```mermaid
 flowchart TB
@@ -51,14 +51,23 @@ flowchart TB
         UI["React 元件層\n(App / CalendarView / QuickRecordModal ...)"]
         Hook["usePeriodData\n(狀態層 + 領域邏輯進入點)"]
         Domain["cyclePrediction.js\n(週期預測演算法，純函式)"]
-        Storage["storage.js\n(持久化層)"]
-        LS[("localStorage\npetal-log:records\npetal-log:settings")]
+        Storage["storage.js\n(本機持久化層，含 updatedAt/軟刪除)"]
+        LS[("localStorage\npetal-log:records\npetal-log:settings\npetal-log:sync-code")]
+        CloudHook["useCloudSync\n(選配，同步狀態層)"]
+        SyncMgr["syncManager.js\n(推拉比對／合併決策，updatedAt 決勝)"]
+        CloudAdapter["cloudAdapter.js\n(Supabase 存取層)"]
 
         UI --> Hook
         Hook --> Domain
         Hook --> Storage
         Storage --> LS
+        UI --> CloudHook
+        CloudHook --> SyncMgr
+        SyncMgr --> Storage
+        SyncMgr --> CloudAdapter
     end
+
+    CloudAdapter -.->|"選配，需使用者啟用同步碼"| Supabase[("Supabase\nPostgres + Auth\nrecords / settings")]
 
     Dev["開發者 push main"] --> GHA["GitHub Actions\n(deploy.yml)"]
     GHA -->|"npm ci && npm run build"| Dist["dist/ 靜態檔"]
@@ -71,6 +80,7 @@ flowchart TB
 - **單向資料流**：UI 觸發事件 → `usePeriodData` 呼叫 `storage.js` 寫入 → 更新 React state → UI 重新渲染。元件不直接操作 `localStorage`。
 - **領域邏輯與 UI 解耦**：`cyclePrediction.js` 是不依賴 React、不做 I/O 的純函式模組，方便未來單獨測試或替換演算法。
 - **無全域狀態管理庫**：目前規模下用單一 Hook（`usePeriodData`）搭配 `useState`/`useMemo`/`useCallback` 已足夠，避免引入 Redux/Zustand 等額外複雜度。
+- **雲端同步是附加層，不是取代層**：`syncManager.js` 透過 `storage.js` 既有的讀寫函式（含只給同步層用的 `getRecordsIncludingDeleted`/`upsertRecordsRaw`/`saveSettingsRaw`）與本機資料互動，`usePeriodData` 對外介面完全不變，只新增一個 `refreshFromStorage()` 讓背景同步寫入後能觸發重新渲染。沒有設定 Supabase 環境變數（`VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY`）時，`cloudAdapter.getSupabaseClient()` 回傳 `null`，整條同步路徑優雅短路，App 其餘功能不受任何影響。
 
 ---
 
@@ -83,9 +93,10 @@ flowchart TB
 | 日期處理 | date-fns | ^4.1.0 |
 | 樣式方案 | CSS Modules（`*.module.css`） | — |
 | 部署 | GitHub Actions + GitHub Pages | — |
-| 資料儲存 | 瀏覽器 `localStorage` | — |
+| 資料儲存 | 瀏覽器 `localStorage`（預設）；Supabase（Postgres + Auth，選配同步） | — |
+| 雲端同步 SDK | `@supabase/supabase-js` | ^2.110.7 |
 
-選型原則：所有依賴都刻意精簡（僅 3 個 runtime 套件），符合「輕量、免安裝、快速載入」的產品定位。
+選型原則：所有依賴都刻意精簡，符合「輕量、免安裝、快速載入」的產品定位。`@supabase/supabase-js` 是唯一因 v1.11 雲端同步功能新增的 runtime 依賴，只有設定環境變數啟用同步時才會實際發揮作用；未設定時仍會被打包進 bundle，但所有呼叫都在 `cloudAdapter.js` 內短路，不影響零依賴使用者。
 
 ---
 
@@ -95,16 +106,22 @@ flowchart TB
 Pental-Log/
 ├── .github/workflows/deploy.yml   # CI/CD：build 後部署到 GitHub Pages
 ├── figma-export/                  # 設計稿匯出的靜態 HTML（UI 流程參考稿，非執行程式碼）
+├── .env.example                   # 雲端同步環境變數範本（VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY）
 ├── src/
 │   ├── main.jsx                   # 進入點
-│   ├── App.jsx                    # 根元件，畫面組裝與路由狀態（onboarding / 主畫面）
+│   ├── App.jsx                    # 根元件，畫面組裝與路由狀態（onboarding / 主畫面），串接 usePeriodData 與 useCloudSync
 │   ├── data/
-│   │   └── storage.js             # localStorage 讀寫封裝（持久化層）
+│   │   ├── storage.js             # localStorage 讀寫封裝（本機持久化層，含 updatedAt 時間戳與軟刪除 tombstone）
+│   │   ├── cloudAdapter.js        # Supabase 存取層：同步碼登入/註冊、records/settings 的 CRUD（camelCase↔snake_case 轉換）
+│   │   └── syncManager.js         # 同步協調：推拉比對、updatedAt 決勝、換裝置加入時的合併/覆蓋決策、事件觸發
 │   ├── hooks/
-│   │   └── usePeriodData.js       # 資料狀態管理 + 串接領域邏輯
+│   │   ├── usePeriodData.js       # 資料狀態管理 + 串接領域邏輯
+│   │   └── useCloudSync.js        # 包裝 syncManager 給 UI 用的 Hook（同步狀態、啟用/加入/合併/結束同步）
 │   ├── utils/
 │   │   ├── cyclePrediction.js     # 週期預測演算法（純函式，含異常偵測）
-│   │   └── symptoms.js            # 伴隨症狀選項定義 + 症狀頻率統計
+│   │   ├── symptoms.js            # 伴隨症狀選項定義 + 症狀頻率統計
+│   │   ├── syncCode.js            # 同步碼：5 個主題詞庫、產生規則、正規化與檢查碼驗證
+│   │   └── hash.js                # 純 JS SHA-256（供同步碼導出合成 email 使用，不依賴 crypto.subtle）
 │   ├── components/
 │   │   ├── OnboardingFlow/        # 首次使用引導
 │   │   ├── EmptyStateOnboarding/  # 無紀錄時的空狀態
@@ -147,23 +164,39 @@ Pental-Log/
 | `editRecord(id, patch)` / `removeRecord(id)` | 修改 / 刪除單筆紀錄 |
 | `updateSettings(patch)` | 局部更新設定並落盤 |
 | `resetAllData()` | 清空所有紀錄與設定 |
+| `refreshFromStorage()` | （v1.11）重新從 `storage.js` 讀取並更新 state；供 `useCloudSync` 在背景同步寫入 localStorage 後呼叫，觸發畫面重新渲染 |
 
 **關鍵行為 — 自動填滿後續天數**：當使用者記錄「新一次經期的第一天」（前一天沒有紀錄）且 `settings.autoFillSubsequentDays` 為真時，會依平均經期天數自動建立後續數天的紀錄，減少重複操作。
 
-### 6.3 `storage.js`（持久化層）
+### 6.3 `storage.js`（本機持久化層）
 
-以兩把 key 存取 `localStorage`：
+以三把 key 存取 `localStorage`：
 
 - `petal-log:records`：紀錄陣列，寫入時依 `date` 去重並排序。
 - `petal-log:settings`：使用者設定物件。
+- `petal-log:sync-code`：（v1.11，選配）目前裝置啟用同步時使用的同步碼，未啟用同步則不存在。
 
 所有讀取皆有 `try/catch` 保底，JSON 解析失敗時退回預設值，避免壞資料造成白畫面。
+
+**v1.11 新增（供雲端同步層使用）**：`getRecords()` 對外仍只回傳未被軟刪除的紀錄，但內部改為對 `readRaw()`（含軟刪除 tombstone 列）操作；`addRecord`/`addRecords`/`updateRecord` 每次寫入都會 stamp `updatedAt`；`deleteRecord` 改為永久軟刪除（設定 `deletedAt`，資料列仍保留）。另外新增兩個只給 `syncManager.js` 使用、**不會**自動蓋上目前時間的函式：`getRecordsIncludingDeleted()`（暴露含 tombstone 的原始陣列）與 `upsertRecordsRaw(records)` / `saveSettingsRaw(settings)`（依呼叫端傳入的 `updatedAt` 原樣寫入，因為從雲端拉回的資料代表「雲端在某個時間點的狀態」，不該被蓋上本機現在時間，否則會讓下一輪同步誤判新舊）。詳見第 15 章。
 
 ### 6.4 `cyclePrediction.js`（領域邏輯層）
 
 詳見第 8 章。
 
-### 6.5 UI 元件
+### 6.5 雲端同步相關模組（v1.11，選配）
+
+| 模組 | 職責 |
+|---|---|
+| `cloudAdapter.js` | 唯一直接呼叫 `@supabase/supabase-js` 的模組。`getSupabaseClient()` 在環境變數缺少時回傳 `null`，其餘函式一律先檢查這個並短路。提供 `signUpWithCode`/`signInWithCode`（由同步碼導出合成 email + 密碼，借用 Supabase 內建 email/password 登入）、`bindRecoveryEmail`，以及鏡射 `storage.js` 介面的 `getRecords`/`addRecord`/`addRecords`/`updateRecord`/`deleteRecord`/`getSettings`/`saveSettings`（camelCase↔snake_case 轉換），還有清除雲端資料用的 `deleteAllCloudData` |
+| `syncManager.js` | 同步協調中樞：`enableSyncNew()` 產生新碼並推送本機資料；`enableSyncJoin(code)` 驗證格式/檢查碼後登入，本機已有資料時回傳 `needsDecision` 交由 UI 詢問；`resolveJoin(strategy)` 依 `'merge'`/`'overwrite-with-cloud'` 完成加入；`runSync()` 逐筆用 `updatedAt` 決勝合併 records 與 settings；`resetEverything()` 供「清除所有紀錄」在同步啟用時連同雲端一起清空。以 `subscribe(callback)` 提供簡易 pub-sub，同步完成時通知訂閱者。在 `online` 事件、分頁回到前景（`visibilitychange`）與 App 啟動時（若已啟用同步）觸發，不使用輪詢 |
+| `useCloudSync.js` | 包裝 `syncManager.js` 給 React 用的 Hook，暴露 `{ status, enableSyncNew, enableSyncJoin, resolveJoin, revealCode, bindRecoveryEmail, disableSync, resetEverything }`；接受一個 `onSynced` callback（`App.jsx` 傳入 `usePeriodData` 的 `refreshFromStorage`），背景同步完成時自動觸發畫面更新 |
+| `syncCode.js` | 定義 5 個彼此不重疊的主題詞庫（Cosmos／Reverie／Fortress／Tide／Wildwood，各 10 個形容詞/名詞/副詞/動詞），`generateSyncCode()` 隨機組出「主題詞-主題詞-4碼隨機英數-1碼檢查碼」格式的碼，`validateSyncCodeChecksum()` 在呼叫 Supabase 前先做格式與檢查碼驗證 |
+| `hash.js` | 純 JS SHA-256 實作，供 `cloudAdapter.deriveEmailFromCode` 把同步碼轉成穩定的合成 email；刻意不用 `crypto.subtle`，因為本機建置版以 `file://` 開啟時該 API 是否可用不穩定 |
+
+詳見第 15 章「雲端同步設計」。
+
+### 6.6 UI 元件
 
 | 元件 | 職責 |
 |---|---|
@@ -177,7 +210,7 @@ Pental-Log/
 | `FlowPicker` | 「量少 / 量中 / 量多」三選一元件，供 `QuickRecordModal` 與 `DayDetail` 共用 |
 | `SymptomPicker` | 伴隨症狀多選晶片元件，選項來源為 `src/utils/symptoms.js` 的內建症狀（已排除 `settings.hiddenSymptoms` 中的項目）再併入 `settings.customSymptoms`；晶片顏色讀 `settings.symptomColors`（覆寫）或選項的 `defaultColor`；另有「其他」晶片，開啟後顯示自由文字輸入框，寫入 `Record.symptomNote`。供 `DayDetail` 使用 |
 | `ReportView` | 取代主畫面的全畫面報表頁：摘要統計、異常提醒、週期歷史表、伴隨症狀頻率統計，提供「列印／另存為 PDF」按鈕（呼叫瀏覽器原生 `window.print()`，零依賴） |
-| `SettingsPanel` | 調整平均經期/週期天數、自動填滿開關、排卵預測顯示開關、週期階段顏色提示（手風琴，展開後為四階段開關＋色票）、症狀記錄開關（手風琴，展開後為「症狀項目與顏色設定」：內建症狀的顯示/隱藏開關＋色票、自訂症狀新增/刪除）、異常提醒開關、查看報表入口、清除所有資料 |
+| `SettingsPanel` | 調整平均經期/週期天數、自動填滿開關、排卵預測顯示開關、週期階段顏色提示（手風琴，展開後為四階段開關＋色票）、症狀記錄開關（手風琴，展開後為「症狀項目與顏色設定」：內建症狀的顯示/隱藏開關＋色票、自訂症狀新增/刪除）、異常提醒開關、查看報表入口、清除所有資料；（v1.11，僅在 `cloudSync.status.configured` 為真時顯示）「雲端同步」手風琴：未啟用時可「建立新同步碼」或「輸入已有的同步碼」加入，已啟用時可顯示/隱藏碼、綁定救援 email、結束同步 |
 
 ---
 
@@ -192,6 +225,8 @@ Pental-Log/
   flow: 'light' | 'medium' | 'heavy'
   symptoms: string[]   // 伴隨症狀代碼陣列（內建代碼見 `src/utils/symptoms.js`，或自訂症狀的 `custom-<timestamp>` id）；預設 []，自動填滿產生的後續天數不帶入首日症狀
   symptomNote: string  // 「其他」欄位使用者自行輸入的自由文字；預設 ''，同樣只有首日會帶入
+  updatedAt: string    // （v1.11）ISO 時間戳，每次 add/update/delete 都會重新蓋章；未啟用雲端同步也會寫入，供將來啟用時直接使用，無需遷移
+  deletedAt: string | null  // （v1.11）軟刪除時間戳；`storage.getRecords()` 會過濾掉 deletedAt 不為 null 的列，只有同步層透過 `getRecordsIncludingDeleted()` 才看得到
 }
 ```
 
@@ -219,6 +254,7 @@ Pental-Log/
   customSymptoms: { id: string, label: string }[]  // 使用者自訂的症狀項目，預設 []，id 格式為 `custom-${Date.now()}`
   symptomColors: Record<string, string>            // 症狀代碼（含內建與自訂）→ hex 顏色的覆寫表，未設定的內建症狀退回 `SYMPTOM_OPTIONS` 的 `defaultColor`
   hiddenSymptoms: string[]          // 被隱藏、不在 `SymptomPicker` 顯示的內建症狀代碼，預設 []（全部顯示）；僅適用內建症狀，自訂症狀直接刪除即可
+  updatedAt: string | null          // （v1.11）ISO 時間戳，`saveSettings` 每次寫入都會重新蓋章；預設 null（從未存過）
 }
 ```
 
@@ -228,8 +264,9 @@ Pental-Log/
 
 | Key | 內容 |
 |---|---|
-| `petal-log:records` | `Record[]`，依日期排序 |
+| `petal-log:records` | `Record[]`，依日期排序（含軟刪除 tombstone 列） |
 | `petal-log:settings` | `Settings` |
+| `petal-log:sync-code` | （v1.11，選配）字串，目前裝置啟用同步時使用的同步碼；未啟用則不存在此 key |
 
 > 目前沒有 schema 版本欄位；若未來調整資料結構，需在 `storage.js` 加入遷移（migration）邏輯，見第 13 章。
 
@@ -349,13 +386,14 @@ flowchart LR
 
 ### 11.1 隱私與資料安全
 
-- **零伺服器、零帳號**：所有資料只存在使用者自己的瀏覽器內，不會有第三方（含開發者本人）能存取。
+- **零伺服器、零帳號（預設）**：未啟用雲端同步時，所有資料只存在使用者自己的瀏覽器內，不會有第三方（含開發者本人）能存取。
+- **雲端同步是明確 opt-in 的例外（v1.11）**：使用者主動啟用後，資料會存到開發者自建的 Supabase 專案（Postgres，以 Row Level Security 限制每個帳號只能存取自己的資料）。這是刻意的取捨：換取跨裝置同步／備份能力，代價是 Supabase 服務方在技術上具備存取未加密資料的能力（標準 BaaS 安全水準，非端對端加密）。詳見第 15.6 節。
 - **中性語言（固定行為）**：介面文案固定使用中性字眼（如「記錄」），降低他人瞥見螢幕時識別出這是經期記錄 App 的風險；不再提供關閉此行為的設定。
-- **風險**：`localStorage` 未加密，共用裝置上的其他使用者理論上可透過瀏覽器開發者工具讀取；目前不在威脅模型（threat model）處理範圍內。
+- **風險**：`localStorage` 未加密，共用裝置上的其他使用者理論上可透過瀏覽器開發者工具讀取；目前不在威脅模型（threat model）處理範圍內。啟用同步後，同步碼本身以明碼存在本機 `localStorage`，與此風險模型一致（見第 15.6 節）。
 
 ### 11.2 效能
 
-- Runtime 依賴僅 3 個套件，建構後 bundle 體積小，適合行動網路環境載入。
+- 未啟用雲端同步時 runtime 依賴僅 3 個套件；`@supabase/supabase-js`（v1.11 新增）即使未設定環境變數也會被打包進 bundle，但不會被執行，對載入效能的影響僅止於 bundle 體積（見第 4 章）。
 - 所有清單/日曆運算使用 `useMemo` 快取，避免不必要的重算。
 
 ### 11.3 無障礙（Accessibility）
@@ -376,7 +414,8 @@ flowchart LR
 - **無測試關卡**：目前 CI 只做 build，沒有 lint / 單元測試步驟（見第 13 章已知限制）。
 - **雙重建置模式**：`vite.config.js` 以 GitHub Actions 自動設定的 `CI` 環境變數區分兩種建置結果：
   - **CI（`CI=true`，GitHub Pages）**：`base: '/Petal-Log/'`（對應 repo 子路徑），輸出標準 ES module（`<script type="module">`），走 http(s) 協定不受檔案協定限制。
-  - **本機（未設定 `CI`）**：`base: './'`（相對路徑）；`build.rollupOptions.output.format` 改為 `'iife'`，打成單一傳統 script；自訂的 `localFileOpenHtml` 外掛（`transformIndexHtml`）把輸出 HTML 的 `type="module"` 換成 `defer`、移除 `crossorigin` 屬性。這是因為用瀏覽器直接以 `file://` 開啟 `dist/index.html` 時，Chrome 會以「origin 是 null」擋掉 `type="module"` 與帶 `crossorigin` 資源的 CORS 請求，導致空白頁；改成傳統 `<script defer>` 就能繞開此限制，讓 `npm run build` 產出的 `dist/index.html` 可以直接雙擊在瀏覽器開啟，不需要跑任何伺服器或指令。兩種模式產出的功能完全一致，只有打包格式與路徑不同。
+  - **本機（未設定 `CI`）**：`base: './'`（相對路徑）；`build.rollupOptions.output.format` 改為 `'iife'`，打成單一傳統 script；自訂的 `localFileOpenHtml` 外掛（`transformIndexHtml`）把輸出 HTML 的 `type="module"` 換成 `defer`、移除 `crossorigin` 屬性。這是因為用瀏覽器直接以 `file://` 開啟 `dist/index.html` 時，Chrome 會以「origin 是 null」擋掉 `type="module"` 與帶 `crossorigin` 資源的 CORS 請求，導致空白頁；改成傳統 `<script defer>` 就能繞開此限制，讓 `npm run build` 產出的 `dist/index.html` 可以直接雙擊在瀏覽器開啟，不需要跑任何伺服器或指令。兩種模式產出的功能完全一致，只有打包格式與路徑不同。`@supabase/supabase-js`（v1.11）已驗證可正常打進本機 IIFE 模式，不需要 `inlineDynamicImports` 之類的例外處理。
+- **雲端同步環境變數（v1.11，選配）**：`vite build` 讀取 `VITE_SUPABASE_URL`／`VITE_SUPABASE_ANON_KEY`。本機開發用專案根目錄的 `.env`（已加入 `.gitignore`，不會被提交，`.env.example` 提供範本）；GitHub Actions 部署版則需要在 repo 的 **Settings → Secrets and variables → Actions** 額外新增這兩個 secret，`deploy.yml` 的 build step 才會把它們帶入建置。未設定這兩個變數時，`cloudAdapter.getSupabaseClient()` 回傳 `null`，App 其餘功能不受影響，雲端同步區塊也不會顯示在設定畫面。anon key 設計上就是給前端公開使用的，安全性由 Supabase 的 Row Level Security 保護，不需要當作機密處理。
 
 ---
 
@@ -384,12 +423,15 @@ flowchart LR
 
 | 限制 | 說明 |
 |---|---|
-| 單裝置、無備份 | 資料僅存於單一瀏覽器的 `localStorage`；清除瀏覽器資料、換裝置、換瀏覽器即遺失紀錄，且無任何匯出/備份手段。 |
-| 無雲端同步 | 無法跨裝置檢視/記錄。 |
+| 單裝置、無備份（預設） | 未啟用 v1.11 雲端同步時，資料僅存於單一瀏覽器的 `localStorage`；清除瀏覽器資料、換裝置、換瀏覽器即遺失紀錄，且無任何匯出/備份手段。 |
+| 雲端同步的熵取捨 | 同步碼安全性以 4 碼隨機英數為主要下限（約 30 bits），是為了碼好抄好記的刻意取捨，靠 Supabase 端登入失敗鎖定機制補強，非銀行等級安全性，詳見 15.2、15.6。 |
+| 合併決勝有時鐘誤差風險 | 換裝置加入且本機已有資料時，`updatedAt` 決勝可能受本機瀏覽器時鐘與 Supabase 伺服器時鐘之間的些微誤差影響，極短時間內（同一秒等級）跨裝置編輯同一天紀錄時，決勝結果可能與實際操作先後順序不符；日常使用（不同裝置編輯間隔通常數分鐘以上）幾乎不會被感知到。 |
+| 雲端同步需自行維護 Supabase 專案 | 屬於開發者自建的外部服務，不是內建於程式碼中；需要手動建立專案、跑 SQL migration、設定 Auth 選項，詳見 15.3。 |
 | 無通知提醒 | 不會主動提醒使用者「預計經期即將到來」。 |
 | 預測演算法簡化 | 直接取歷史週期算術平均，未排除異常值（如手誤造成的極端天數），週期不規律的使用者預測準確度會下降。 |
-| 無自動化測試 | 目前無單元測試（尤其 `cyclePrediction.js` 這類含邊界情況的純函式，最適合補測試）與 CI lint 關卡。 |
+| 無自動化測試 | 目前無單元測試（尤其 `cyclePrediction.js` 這類含邊界情況的純函式，最適合補測試）與 CI lint 關卡；v1.11 的同步碼/雜湊/本機 storage 邏輯有透過臨時腳本手動驗證過，但未固化為專案內的自動化測試。 |
 | 無 schema 版本控管 | `storage.js` 沒有資料版本欄位，未來若調整 Record/Settings 結構，舊資料需要手動處理遷移。 |
+| Tombstone 無限累積 | 軟刪除的紀錄會永久留在 `localStorage` 與 Supabase 的 `records` 表中，以個人使用規模（多年下來頂多數千筆）可接受，暫無清理機制。 |
 
 ---
 
@@ -397,35 +439,117 @@ flowchart LR
 
 以下項目為已知方向，尚未排定優先順序與時程，設計時需注意「純本地、零後端」是目前的核心賣點，任何雲端相關功能都應設計為**選配（opt-in）**，不影響不需要該功能的使用者。
 
-### 14.1 雲端同步 / 帳號系統
+> 雲端同步／帳號系統與多裝置備份已於 **v1.11** 實作（見第 15 章），故從本章移除；以下為仍待規劃的方向。
 
-- 需新增後端服務（或採用 BaaS，如 Supabase / Firebase）與認證機制。
-- 架構上建議將 `storage.js` 抽象為介面（`LocalAdapter` / `CloudAdapter`），`usePeriodData` 不感知底層是本地還是雲端，未來才好雙寫或切換。
-- 需設計本地/雲端資料衝突時的合併策略（例如以 `updatedAt` 時間戳決勝）。
-
-### 14.2 多裝置備份
-
-- 若不做完整帳號系統，可先做輕量版：產生備份檔（JSON）供使用者手動於新裝置匯入，作為雲端同步前的過渡方案，與 14.4 資料匯出可共用底層邏輯。
-
-### 14.3 通知提醒
+### 14.1 通知提醒
 
 - Web 端可用 `Notification API` + Service Worker（需將專案升級為 PWA，含 manifest 與 SW 註冊）。
 - 提醒時機建議可設定（如「預計經期前 N 天」），通知文案沿用第 2 章的中性語言原則（固定行為，非設定）。
 
-### 14.4 資料匯出（CSV / JSON）
+### 14.2 資料匯出（CSV / JSON）
 
 - **v1.5 已實作人類可讀的 PDF 報表**（見 8.6、`ReportView`，透過瀏覽器列印產生），滿足「提供醫師參考」的需求；但**機器可讀的原始資料匯出（CSV / JSON）仍未實作**。
 - 相對低成本、可優先實作：讀取 `getRecords()` 結果，序列化為 CSV 或 JSON 並觸發瀏覽器下載（`Blob` + `<a download>`），無需新增依賴。
-- 可與 14.2 的「匯入」功能對應，形成完整備份/還原迴路，是 PDF 報表無法取代的用途。
+- v1.11 雲端同步已解決「跨裝置備份」的核心需求，此項目現在的定位純粹是「機器可讀的資料匯出」，供使用者自行留存或匯入其他工具分析。
 
-### 14.5 週期圖表統計
+### 14.3 週期圖表統計
 
 - 新增如「近 6 個月週期天數趨勢」「經量分佈」等圖表，呈現於 `SettingsPanel` 或新增獨立的「統計」頁籤。
 - 資料來源可直接複用 `cyclePrediction.js` 的 `groupIntoCycles` 分組結果，避免重複造輪子；圖表繪製可先評估用輕量 SVG 手刻，維持目前「零額外重依賴」的原則，再視需求導入圖表庫。
 
 ---
 
-## 15. 詞彙表
+## 15. 雲端同步設計（v1.11）
+
+### 15.1 設計動機與定位
+
+使用者需求是「跨裝置同步」與「資料備份／防遺失」，但不想犧牲第 1、2 章列出的「免帳號、隱私優先」定位。設計上的核心原則：**完全 opt-in**——沒有設定 Supabase 環境變數，或使用者從未啟用同步，App 行為與 v1.10 完全一致；即使啟用了，也刻意不做傳統的 email/密碼註冊流程，改用下述的「同步碼」機制。
+
+### 15.2 同步碼機制
+
+同步碼格式：`主題詞-主題詞-4碼隨機英數-1碼檢查碼`，例如 `Radiant-Comet-7K3F-M`。
+
+- **主題詞**：`src/utils/syncCode.js` 定義 5 個彼此完全獨立、不重疊用字的主題詞庫——Cosmos（星空）、Reverie（夢幻）、Fortress（城堡）、Tide（海洋）、Wildwood（森林），每個主題各有 10 個形容詞／名詞／副詞／動詞（共 200 個詞，逐一核對過不重複）。`generateSyncCode(themeName)` 隨機選「形容詞+名詞」或「副詞+動詞」的文法模式組出主題詞部分，只負責風格與好記性，不是安全機制的一部分。使用者可在「啟用同步」畫面用下拉選單指定想要的主題風格（`THEME_LABELS` 提供中文顯示名稱），或選「隨機」交給系統挑；省略主題參數時 `pickThemeWordPair()` 一樣會隨機挑一個。
+- **4 碼隨機英數區塊**：`randomAlphanumericBlock()` 用 `crypto.getRandomValues`（非 `Math.random`）產生，字元集排除易混淆字元（`0/O`、`1/I`），是同步碼真正的安全下限，約 20 bits；加上主題詞部分的組合數，總計約 30 bits。這是刻意的取捨（換取碼夠短、方便手動輸入），已知限制與補強方式見 15.6。
+- **檢查碼**：`computeChecksumChar()` 用固定加權公式（仿身分證字號）對碼本體算出一個檢查字元，純粹用於**前端就地偵測打字錯誤**（`validateSyncCodeChecksum()` 在呼叫 Supabase 前就能擋掉明顯打錯的輸入），公式公開、不提供任何安全性。
+- **免帳號登入的實作方式**：`cloudAdapter.deriveEmailFromCode(code)` 用 `hash.js` 的純 JS SHA-256 把（正規化後的）同步碼算成一個合成 email（`<hash前32碼>@sync.petal-log.internal`），並直接拿同步碼本身當密碼，呼叫 Supabase 內建的 `signUp`/`signInWithPassword`。同一組碼永遠重算出同一個 email，不需要伺服器端查表；換裝置時輸入同一組碼即可登入同一個帳號。
+- **正規化**：`normalizeSyncCode()` 統一大小寫與空白，確保使用者用不同大小寫輸入同一組碼時仍能算出一致的 email／密碼。
+- **選配救援手段**：已登入狀態下可呼叫 `bindRecoveryEmail(email)`（`cloudSync.bindRecoveryEmail`）綁定真實 email，供同步碼遺失時的救援路徑；此步驟完全可略過。
+
+### 15.3 資料庫 Schema（Supabase / Postgres）
+
+```sql
+create table records (
+  id text not null,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  date date not null,
+  flow text not null check (flow in ('light','medium','heavy')),
+  symptoms jsonb not null default '[]',
+  symptom_note text not null default '',
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz,
+  unique (user_id, date),
+  primary key (user_id, id)
+);
+
+create table settings (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  data jsonb not null default '{}',
+  updated_at timestamptz not null default now()
+);
+```
+
+兩張表皆啟用 Row Level Security，policy 為 `auth.uid() = user_id`，確保每個帳號只能存取自己的資料。另有兩個 `before update` 觸發器，**由資料庫伺服器**（而非前端）蓋上 `updated_at`／`deleted_at` 時間戳：
+
+```sql
+create trigger records_set_updated_at
+  before update on records
+  for each row execute function set_updated_at();
+-- set_updated_at()：new.updated_at = now()；
+-- 若 deleted_at 從 null 轉為非 null（軟刪除發生的那一刻），一併蓋上 now()
+
+create trigger settings_set_updated_at
+  before update on settings
+  for each row execute function settings_set_updated_at();
+```
+
+**兩個實作時發現、後補的 schema 修正**（皆已套用到線上專案）：
+
+1. `id` 的型別原本是 `uuid`，但本機 id 是 `${date}-${Date.now()}` 這種字串格式，型別不符會讓推送失敗；改成 `text`。
+2. `id` 原本是全域唯一的 primary key，但本機 id 是用日期+時間戳產生、不是加密等級的隨機值，理論上兩個不同使用者可能剛好在同一毫秒各自產生一筆紀錄而互相衝突；改成 `(user_id, id)` 組合 primary key，只要求同一使用者底下唯一。
+
+### 15.4 本機 ↔ 雲端同步策略
+
+- **`storage.js` 是唯一的本機真相來源**：所有寫入永遠先成功寫入 `localStorage`，同步是額外疊加的背景動作，絕不阻塞或依賴網路。
+- **軟刪除（tombstone）**：`deleteRecord` 不會真的移除資料列，只標記 `deletedAt`。原因：如果單純比對 `updatedAt` 做新舊決勝，「刪除」這個動作沒有對應的資料列可比較，會被誤判成「對方還沒同步到這筆新資料」而讓已刪除的紀錄復活。
+- **`syncManager.runSync()` 的比對邏輯**：以 `date` 為鍵（因為同一使用者一天只會有一筆有效紀錄），逐一比較本機與雲端的 `updatedAt`，較新的一方覆蓋另一方；只存在一邊的直接單向同步過去。Settings 則整包比較 `updatedAt` 決勝。
+- **推送後讀回伺服器時間戳**：`cloudAdapter` 的寫入函式在 upsert 後 `.select()` 讀回資料庫（觸發器）指派的 `updated_at`，`syncManager` 再用 `storage.upsertRecordsRaw()` 把這個值寫回本機，讓本機與雲端的時間戳完全一致，避免同一筆資料在下一輪同步時因為本機端存的是舊時間戳而被誤判。
+- **`upsertRecordsRaw`／`saveSettingsRaw` 不會重新蓋章**：這兩個函式（`storage.js`）只給同步層使用，會照樣寫入呼叫端提供的 `updatedAt`，因為拉取自雲端的資料代表的是「雲端在某個時間點的狀態」，不是「現在發生的本機編輯」。
+- **觸發時機**：`online` 事件、分頁回到前景（`visibilitychange`）、App 啟動時（若已啟用同步）；刻意不用輪詢 `setInterval`，維持專案輕量原則。
+- **換裝置加入時的合併決策**：`enableSyncJoin(code)` 若偵測到本機已有非空紀錄，不會靜默覆蓋或簡單串接（會產生重複日期），而是回傳 `needsDecision: true`，交由 UI 詢問使用者要「合併雙方紀錄」（`resolveJoin('merge')`，逐日期用 `updatedAt` 決勝）還是「改用雲端資料」（`resolveJoin('overwrite-with-cloud')`，先 `clearAllData()` 清空本機再整批拉取雲端版本）。
+
+### 15.5 UI 操作流程
+
+於 `SettingsPanel` 新增「雲端同步」手風琴區塊（僅在 `cloudSync.status.configured` 為真時顯示，即已設定 Supabase 環境變數）：
+
+- **未啟用**：可先用下拉選單選擇同步碼的主題風格（5 個主題名稱 + 「隨機」，預設隨機）；「啟用同步（建立新同步碼）」按鈕依選擇的主題產生新碼並顯示；「輸入已有的同步碼」文字框＋「加入」按鈕，格式/檢查碼錯誤、帳號不存在等各自有對應錯誤文案，且本機已有資料時會先跳出合併決策。
+- **已啟用**：同步碼預設遮蔽顯示（`••••••••••••`），可切換顯示／隱藏；可綁定救援 email（選填）；「結束同步（僅限本機）」只影響這台裝置，雲端資料與帳號仍在，之後可再用同一組碼加入。
+- **「清除所有本機紀錄」按鈕在同步啟用時的行為**：改標籤為「清除所有紀錄（含雲端）」，confirm 訊息明確告知會連同雲端與其他已同步裝置的資料一起清除；實作上呼叫 `syncManager.resetEverything()`（連同 `cloudAdapter.deleteAllCloudData()` 清空雲端、結束本機同步、清空本機），避免「清除」按鈕在同步啟用時因為下次自動同步又把資料拉回來、變成沒清到的邏輯陷阱。
+
+### 15.6 安全性與隱私考量
+
+- **同步碼的安全水準**：約 30 bits 的熵，遠低於一般密碼建議強度，是為了碼好抄好記的刻意取捨。真正的防線是**線上攻擊**（每次嘗試都要打一次 Supabase 登入 API）搭配 Supabase Auth 端的失敗次數鎖定／速率限制；不是設計成能抵禦離線暴力破解或大規模分散式攻擊的強度。以本 App 儲存個人經期記錄（非金融帳戶）的實際風險量級評估，這個取捨可接受。
+- **同步碼即密碼，明碼存於本機**：`petal-log:sync-code` 這個 key 沒有加密，與整個 App「本機資料不加密」的既有風險模型一致（見 11.1），不是新引入的風險等級。
+- **anon key 可公開**：`VITE_SUPABASE_ANON_KEY` 設計上就是給前端公開使用的，安全性由 Supabase 的 Row Level Security 保護；反之 `service_role` key 絕不可出現在前端程式碼或版本控制中（本專案未使用）。
+- **非端對端加密**：資料在 Supabase 上是明碼（受 RLS 保護，但 Supabase 服務方技術上可存取），不是端對端加密——實作端對端加密需要額外的金鑰管理機制（例如使用者自訂密碼加密後才上傳），工程成本明顯更高，目前版本未採用。
+
+### 15.7 已知限制
+
+詳見第 13 章「已知限制」表格中與雲端同步相關的條目（熵取捨、時鐘誤差、需自行維護 Supabase 專案、tombstone 累積）。
+
+---
+
+## 16. 詞彙表
 
 | 詞彙 | 說明 |
 |---|---|
@@ -434,6 +558,8 @@ flowchart LR
 | Flow（經量） | `light`（量少）/ `medium`（量中）/ `heavy`（量多） |
 | 中性語言（Neutral language） | 介面文案固定採用的隱私保護寫法，隱藏「經期」等敏感字眼（非使用者可調整的設定） |
 | 自動填滿（Auto-fill subsequent days） | 記錄經期首日時，依平均經期天數自動建立後續天數紀錄的設定 |
+| 同步碼（Sync code） | v1.11 雲端同步使用的免帳號登入憑證，格式為「主題詞-主題詞-4碼隨機英數-1碼檢查碼」，等同密碼，見第 15.2 節 |
+| 軟刪除／Tombstone | 刪除紀錄時不真的移除資料列，只標記 `deletedAt` 時間戳，讓刪除動作能正確同步到其他裝置，見第 15.4 節 |
 
 ---
 
@@ -452,3 +578,4 @@ flowchart LR
 | v1.8 | 2026-07-11 | `SettingsPanel` 的「週期階段顏色提示」比照症狀設定，同樣改為手風琴（預設收起，展開才顯示四階段開關＋色票），讓設定面板預設更精簡 |
 | v1.9 | 2026-07-11 | 移除 `neutralLanguage` 設定：實際影響範圍僅 FAB／快速記錄／日詳情等少數按鈕文字，且中性化本來就是預設值，改為固定行為，不再是可關閉的開關。`SettingsPanel` 移除對應開關；`App.jsx` 的 `recordLabel` 變數移除，改用元件既有的 `'記錄'` 預設值 |
 | v1.10 | 2026-07-14 | `vite.config.js` 改為依 `CI` 環境變數區分兩種建置：本機建置輸出相對路徑＋IIFE 傳統 script（並用自訂外掛移除 `type="module"`／`crossorigin`），讓 `npm run build` 產出的 `dist/index.html` 可以直接雙擊在瀏覽器開啟；CI（GitHub Pages）建置行為不變 |
+| v1.11 | 2026-07-18 | 新增選配的雲端同步功能（見第 15 章）：1) 免帳號的「同步碼」機制（`syncCode.js` 5 個主題詞庫、`hash.js` 純 JS SHA-256 導出合成 email，借用 Supabase 內建 email/password 登入）；2) `storage.js` 新增 `updatedAt`／`deletedAt`（軟刪除）欄位與只給同步層用的 raw 讀寫函式；3) 新增 `cloudAdapter.js`（Supabase 存取層）、`syncManager.js`（推拉比對、`updatedAt` 決勝、換裝置合併/覆蓋決策）、`useCloudSync.js`；4) `SettingsPanel` 新增「雲端同步」手風琴區塊，「清除所有紀錄」在同步啟用時改為連同雲端一併清除；5) 新增 `.env.example`，`deploy.yml` 支援透過 GitHub Actions secrets 帶入 Supabase 環境變數；全程 opt-in，未設定環境變數或未啟用同步時行為與 v1.10 完全一致 |

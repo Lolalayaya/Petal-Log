@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { usePeriodData } from './hooks/usePeriodData'
+import { useCloudSync } from './hooks/useCloudSync'
 import { CalendarView } from './components/CalendarView/CalendarView'
 import { PredictionBanner } from './components/PredictionBanner/PredictionBanner'
 import { QuickRecordModal } from './components/QuickRecordModal/QuickRecordModal'
@@ -22,7 +23,12 @@ export default function App() {
     removeRecord,
     updateSettings,
     resetAllData,
+    refreshFromStorage,
   } = usePeriodData()
+
+  const cloudSync = useCloudSync(refreshFromStorage)
+
+  const handleResetAllData = () => (cloudSync.status.enabled ? cloudSync.resetEverything() : resetAllData())
 
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(null)
@@ -131,8 +137,9 @@ export default function App() {
         settings={settings}
         onClose={() => setSettingsOpen(false)}
         onUpdateSettings={updateSettings}
-        onResetAllData={resetAllData}
+        onResetAllData={handleResetAllData}
         onOpenReport={() => setReportOpen(true)}
+        cloudSync={cloudSync}
       />
     </div>
   )

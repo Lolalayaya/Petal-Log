@@ -71,6 +71,13 @@ export function usePeriodData() {
     setSettings(getSettings())
   }, [])
 
+  // 供雲端同步層使用：背景把資料寫進 localStorage 後，用這個把結果重新讀回 React state，
+  // 觸發已掛載畫面的重新渲染（同步層的寫入不會自動觸發 usePeriodData 的 re-render）。
+  const refreshFromStorage = useCallback(() => {
+    setRecords(getRecords())
+    setSettings(getSettings())
+  }, [])
+
   return {
     records,
     recordByDate,
@@ -81,5 +88,6 @@ export function usePeriodData() {
     removeRecord,
     updateSettings,
     resetAllData,
+    refreshFromStorage,
   }
 }
