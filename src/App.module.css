@@ -30,6 +30,32 @@
   font-size: 1.1rem;
 }
 
+.gapWarningBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  background: var(--color-amber-300);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.gapWarningText {
+  flex: 1;
+  font-size: var(--font-size-caption);
+  color: var(--color-text-primary);
+  line-height: var(--line-height-body);
+}
+
+.gapWarningDismiss {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
 .fab {
   position: fixed;
   bottom: var(--space-lg);

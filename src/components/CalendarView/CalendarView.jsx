@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
   addMonths,
   subMonths,
@@ -10,10 +10,15 @@ import {
   format,
   isSameMonth,
   isToday,
+  getYear,
+  getMonth,
+  setYear,
+  setMonth,
 } from 'date-fns'
 import styles from './CalendarView.module.css'
 
 const WEEKDAY_LABELS = ['日', '一', '二', '三', '四', '五', '六']
+const MONTH_LABELS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
 
 const DEFAULT_PHASE_COLORS = {
   menstrual: '#b5645c',
@@ -36,11 +41,24 @@ export function CalendarView({
   phaseColors = DEFAULT_PHASE_COLORS,
   onSelectDay,
 }) {
+  const [isPickerOpen, setPickerOpen] = useState(false)
+  const [pickerYear, setPickerYear] = useState(() => getYear(currentMonth))
+
   const days = useMemo(() => {
     const start = startOfWeek(startOfMonth(currentMonth))
     const end = endOfWeek(endOfMonth(currentMonth))
     return eachDayOfInterval({ start, end })
   }, [currentMonth])
+
+  const openPicker = () => {
+    setPickerYear(getYear(currentMonth))
+    setPickerOpen(true)
+  }
+
+  const handlePickMonth = (monthIndex) => {
+    onMonthChange(setMonth(setYear(currentMonth, pickerYear), monthIndex))
+    setPickerOpen(false)
+  }
 
   const predictedDateSet = useMemo(() => new Set(predictedDates), [predictedDates])
   const fertileDateSet = useMemo(() => new Set(fertileWindowDates), [fertileWindowDates])
@@ -65,7 +83,9 @@ export function CalendarView({
         >
           ‹
         </button>
-        <h1 className={styles.monthTitle}>{format(currentMonth, 'yyyy年 M月')}</h1>
+        <button type="button" className={styles.monthTitle} onClick={openPicker}>
+          {format(currentMonth, 'yyyy年 M月')}
+        </button>
         <button
           type="button"
           className={styles.navButton}
@@ -75,6 +95,49 @@ export function CalendarView({
           ›
         </button>
       </div>
+
+      {isPickerOpen && (
+        <div className={styles.pickerOverlay} onClick={() => setPickerOpen(false)}>
+          <div className={styles.pickerPanel} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.pickerYearRow}>
+              <button
+                type="button"
+                className={styles.navButton}
+                onClick={() => setPickerYear((y) => y - 1)}
+                aria-label="上一年"
+              >
+                ‹
+              </button>
+              <span className={styles.pickerYearLabel}>{pickerYear}年</span>
+              <button
+                type="button"
+                className={styles.navButton}
+                onClick={() => setPickerYear((y) => y + 1)}
+                aria-label="下一年"
+              >
+                ›
+              </button>
+            </div>
+            <div className={styles.pickerMonthGrid}>
+              {MONTH_LABELS.map((label, i) => (
+                <button
+                  key={label}
+                  type="button"
+                  className={[
+                    styles.pickerMonthCell,
+                    pickerYear === getYear(currentMonth) && i === getMonth(currentMonth) && styles.pickerMonthCellActive,
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  onClick={() => handlePickMonth(i)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className={styles.weekdayRow}>
         {WEEKDAY_LABELS.map((label) => (
@@ -102,7 +165,8 @@ export function CalendarView({
               className={[
                 styles.day,
                 !inMonth && styles.dayOutside,
-                record && styles.dayRecorded,
+                record && !record.isEstimated && styles.dayRecorded,
+                record && record.isEstimated && styles.dayEstimated,
                 isPredicted && !record && styles.dayPredicted,
                 isToday(day) && styles.dayToday,
               ]

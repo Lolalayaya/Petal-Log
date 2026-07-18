@@ -44,6 +44,14 @@
   margin-top: calc(var(--space-xs) * -1);
 }
 
+.estimatedNote {
+  font-size: var(--font-size-caption);
+  color: var(--color-rose-600);
+  background: var(--color-rose-100);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
+}
+
 .field {
   display: flex;
   flex-direction: column;

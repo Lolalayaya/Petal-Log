@@ -37,6 +37,9 @@ export function DayDetail({
         )}
         {fertilityStatus === 'ovulation' && <p className={styles.fertilityNote}>預測排卵日</p>}
         {fertilityStatus === 'fertile' && <p className={styles.fertilityNote}>預測易孕期</p>}
+        {record?.isEstimated && (
+          <p className={styles.estimatedNote}>此為系統依經期長度自動估算的天數，經量僅供參考，儲存後才會變成正式紀錄</p>
+        )}
 
         <div className={styles.field}>
           <span className={styles.fieldLabel}>經量</span>
@@ -79,7 +82,7 @@ export function DayDetail({
               onClose()
             }}
           >
-            {record ? '更新' : label}
+            {record ? (record.isEstimated ? '確認此天資料' : '更新') : label}
           </button>
         </div>
       </div>

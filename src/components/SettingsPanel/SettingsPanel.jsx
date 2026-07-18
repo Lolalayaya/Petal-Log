@@ -190,43 +190,47 @@ export function SettingsPanel({ isOpen, settings, onClose, onUpdateSettings, onR
           />
         </label>
 
-        <button
-          type="button"
-          className={styles.accordionToggle}
-          onClick={() => setPhaseSectionExpanded((v) => !v)}
-          aria-expanded={isPhaseSectionExpanded}
-        >
-          <span>週期階段顏色提示（月曆上標示）</span>
-          <span className={styles.chevron} aria-hidden="true">
-            {isPhaseSectionExpanded ? '︿' : '﹀'}
-          </span>
-        </button>
+        {settings.showOvulationPrediction && (
+          <>
+            <button
+              type="button"
+              className={styles.accordionToggle}
+              onClick={() => setPhaseSectionExpanded((v) => !v)}
+              aria-expanded={isPhaseSectionExpanded}
+            >
+              <span>週期階段顏色提示（月曆上標示）</span>
+              <span className={styles.chevron} aria-hidden="true">
+                {isPhaseSectionExpanded ? '︿' : '﹀'}
+              </span>
+            </button>
 
-        {isPhaseSectionExpanded &&
-          PHASES.map((phase) => (
-            <div key={phase.key} className={styles.row}>
-              <span
-                className={styles.clickableLabel}
-                onClick={() => onUpdateSettings({ [phase.toggleKey]: !settings[phase.toggleKey] })}
-              >
-                {phase.label}
-              </span>
-              <span className={styles.rowControls}>
-                <input
-                  type="color"
-                  value={settings.phaseColors[phase.key]}
-                  onChange={(e) => updatePhaseColor(phase.key, e.target.value)}
-                  className={styles.colorInput}
-                  aria-label={`${phase.label}顏色`}
-                />
-                <input
-                  type="checkbox"
-                  checked={settings[phase.toggleKey]}
-                  onChange={(e) => onUpdateSettings({ [phase.toggleKey]: e.target.checked })}
-                />
-              </span>
-            </div>
-          ))}
+            {isPhaseSectionExpanded &&
+              PHASES.map((phase) => (
+                <div key={phase.key} className={styles.row}>
+                  <span
+                    className={styles.clickableLabel}
+                    onClick={() => onUpdateSettings({ [phase.toggleKey]: !settings[phase.toggleKey] })}
+                  >
+                    {phase.label}
+                  </span>
+                  <span className={styles.rowControls}>
+                    <input
+                      type="color"
+                      value={settings.phaseColors[phase.key]}
+                      onChange={(e) => updatePhaseColor(phase.key, e.target.value)}
+                      className={styles.colorInput}
+                      aria-label={`${phase.label}顏色`}
+                    />
+                    <input
+                      type="checkbox"
+                      checked={settings[phase.toggleKey]}
+                      onChange={(e) => onUpdateSettings({ [phase.toggleKey]: e.target.checked })}
+                    />
+                  </span>
+                </div>
+              ))}
+          </>
+        )}
 
         <label className={styles.row}>
           <span>記錄伴隨症狀</span>

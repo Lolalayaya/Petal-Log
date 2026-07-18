@@ -13,9 +13,18 @@
 }
 
 .monthTitle {
+  border: none;
+  background: transparent;
   font-size: var(--font-size-h1);
   line-height: var(--line-height-heading);
   font-weight: 600;
+  color: var(--color-text-primary);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+}
+
+.monthTitle:active {
+  background: var(--color-rose-100);
 }
 
 .navButton {
@@ -67,9 +76,71 @@
   font-weight: 600;
 }
 
+.dayEstimated {
+  background: var(--color-rose-100);
+  border: 2px dashed var(--color-rose-600);
+  color: var(--color-rose-600);
+  font-weight: 600;
+}
+
 .dayPredicted {
   border: 2px dashed var(--color-lavender-500);
   color: var(--color-lavender-500);
+  font-weight: 600;
+}
+
+.pickerOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+}
+
+.pickerPanel {
+  position: absolute;
+  top: 64px;
+  left: var(--space-lg);
+  right: var(--space-lg);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-surface);
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.pickerYearRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-lg);
+}
+
+.pickerYearLabel {
+  font-size: var(--font-size-h2);
+  font-weight: 600;
+  min-width: 4.5em;
+  text-align: center;
+}
+
+.pickerMonthGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-sm);
+}
+
+.pickerMonthCell {
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--color-rose-100);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-caption);
+  padding: var(--space-sm) 0;
+}
+
+.pickerMonthCellActive {
+  background: var(--color-rose-600);
+  color: #fff;
   font-weight: 600;
 }
 

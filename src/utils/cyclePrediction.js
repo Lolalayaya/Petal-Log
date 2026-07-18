@@ -21,7 +21,7 @@ const NORMAL_CYCLE_MAX_DAYS = 35
 const PROLONGED_PERIOD_DAYS = 7
 const PERSONAL_CYCLE_DEVIATION_DAYS = 7
 
-function groupIntoCycles(sortedDates) {
+export function groupIntoCycles(sortedDates) {
   const cycles = []
   sortedDates.forEach((dateStr) => {
     const current = cycles[cycles.length - 1]

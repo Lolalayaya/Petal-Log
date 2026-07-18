@@ -35,6 +35,16 @@ export default function App() {
   const [isQuickRecordOpen, setQuickRecordOpen] = useState(false)
   const [isSettingsOpen, setSettingsOpen] = useState(false)
   const [isReportOpen, setReportOpen] = useState(false)
+  const [gapWarning, setGapWarning] = useState(null)
+
+  const handleRecordDay = (date, flow, symptoms, symptomNote) => {
+    const result = recordDay(date, flow, symptoms, symptomNote)
+    if (result?.shortGapWarning) {
+      setGapWarning(`這次記錄的經期起始日與上次只間隔 ${result.gapDays} 天，一般生理上不太可能這麼快又來一次，已記錄這一天，但沒有自動產生後續天數的估算，請檢查是否記錯日期。`)
+    } else {
+      setGapWarning(null)
+    }
+  }
 
   if (!settings.onboardingCompleted) {
     return (
@@ -84,6 +94,20 @@ export default function App() {
         </>
       )}
 
+      {gapWarning && (
+        <div className={styles.gapWarningBanner} role="status">
+          <p className={styles.gapWarningText}>{gapWarning}</p>
+          <button
+            type="button"
+            className={styles.gapWarningDismiss}
+            onClick={() => setGapWarning(null)}
+            aria-label="關閉提示"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       <CalendarView
         currentMonth={currentMonth}
         onMonthChange={setCurrentMonth}
@@ -91,10 +115,10 @@ export default function App() {
         predictedDates={prediction.predictedDates}
         fertileWindowDates={settings.showOvulationPrediction ? prediction.fertileWindowDates : []}
         ovulationDate={settings.showOvulationPrediction ? prediction.ovulationDate : null}
-        menstrualPhaseDates={settings.showMenstrualPhase ? prediction.menstrualPhaseDates : []}
-        follicularPhaseDates={settings.showFollicularPhase ? prediction.follicularPhaseDates : []}
-        ovulationPhaseDates={settings.showOvulationPhase ? prediction.ovulationPhaseDates : []}
-        lutealPhaseDates={settings.showLutealPhase ? prediction.lutealPhaseDates : []}
+        menstrualPhaseDates={settings.showOvulationPrediction && settings.showMenstrualPhase ? prediction.menstrualPhaseDates : []}
+        follicularPhaseDates={settings.showOvulationPrediction && settings.showFollicularPhase ? prediction.follicularPhaseDates : []}
+        ovulationPhaseDates={settings.showOvulationPrediction && settings.showOvulationPhase ? prediction.ovulationPhaseDates : []}
+        lutealPhaseDates={settings.showOvulationPrediction && settings.showLutealPhase ? prediction.lutealPhaseDates : []}
         phaseColors={settings.phaseColors}
         onSelectDay={setSelectedDate}
       />
@@ -106,7 +130,7 @@ export default function App() {
       <QuickRecordModal
         isOpen={isQuickRecordOpen}
         onClose={() => setQuickRecordOpen(false)}
-        onSave={recordDay}
+        onSave={handleRecordDay}
       />
 
       <DayDetail
@@ -128,7 +152,7 @@ export default function App() {
         symptomColors={settings.symptomColors}
         hiddenSymptoms={settings.hiddenSymptoms}
         onClose={() => setSelectedDate(null)}
-        onSave={recordDay}
+        onSave={handleRecordDay}
         onDelete={removeRecord}
       />
 
