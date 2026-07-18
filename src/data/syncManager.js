@@ -5,7 +5,6 @@ import {
   signInWithCode,
   signOut as cloudSignOut,
   getCurrentSession,
-  bindRecoveryEmail as cloudBindRecoveryEmail,
   getRecordsIncludingDeleted as cloudGetRecordsIncludingDeleted,
   addRecords as cloudAddRecords,
   getSettings as cloudGetSettings,
@@ -118,10 +117,6 @@ export async function resolveJoin(strategy) {
 
 export function revealCode() {
   return getStoredCode()
-}
-
-export async function bindRecoveryEmail(email) {
-  return cloudBindRecoveryEmail(email)
 }
 
 /** 結束同步，僅影響本機（雲端資料與帳號都還在，換裝置輸入同一組碼仍可加入）。 */

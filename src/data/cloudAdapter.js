@@ -59,13 +59,6 @@ export async function signOut() {
   await supabase.auth.signOut()
 }
 
-/** 選配救援手段：綁定真實 email，Supabase 會寄確認信到新地址。 */
-export async function bindRecoveryEmail(email) {
-  const supabase = getSupabaseClient()
-  if (!supabase) return NOT_CONFIGURED_ERROR
-  return supabase.auth.updateUser({ email })
-}
-
 async function getCurrentUserId() {
   const supabase = getSupabaseClient()
   if (!supabase) return null

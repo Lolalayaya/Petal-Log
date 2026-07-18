@@ -6,7 +6,6 @@ import {
   enableSyncJoin as enableSyncJoinInManager,
   resolveJoin as resolveJoinInManager,
   revealCode,
-  bindRecoveryEmail as bindRecoveryEmailInManager,
   disableSync as disableSyncInManager,
   resetEverything as resetEverythingInManager,
 } from '../data/syncManager'
@@ -40,10 +39,6 @@ export function useCloudSync(onSynced) {
     return result
   }, [])
 
-  const bindRecoveryEmail = useCallback(async (email) => {
-    return bindRecoveryEmailInManager(email)
-  }, [])
-
   const disableSync = useCallback(async () => {
     await disableSyncInManager()
     setStatus(getSyncStatus())
@@ -60,7 +55,6 @@ export function useCloudSync(onSynced) {
     enableSyncJoin,
     resolveJoin,
     revealCode,
-    bindRecoveryEmail,
     disableSync,
     resetEverything,
   }

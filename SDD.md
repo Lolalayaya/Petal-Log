@@ -3,7 +3,7 @@
 | 項目 | 內容 |
 |---|---|
 | 專案名稱 | Petal Log |
-| 文件版本 | v1.17 |
+| 文件版本 | v1.18 |
 | 最後更新 | 2026-07-18 |
 | 狀態 | 現行版本（對應已實作功能） |
 
@@ -198,9 +198,9 @@ Pental-Log/
 
 | 模組 | 職責 |
 |---|---|
-| `cloudAdapter.js` | 唯一直接呼叫 `@supabase/supabase-js` 的模組。`getSupabaseClient()` 在環境變數缺少時回傳 `null`，其餘函式一律先檢查這個並短路。提供 `signUpWithCode`/`signInWithCode`（由同步碼導出合成 email + 密碼，借用 Supabase 內建 email/password 登入）、`bindRecoveryEmail`，以及鏡射 `storage.js` 介面的 `getRecords`/`addRecord`/`addRecords`/`updateRecord`/`deleteRecord`/`getSettings`/`saveSettings`（camelCase↔snake_case 轉換），還有清除雲端資料用的 `deleteAllCloudData` |
+| `cloudAdapter.js` | 唯一直接呼叫 `@supabase/supabase-js` 的模組。`getSupabaseClient()` 在環境變數缺少時回傳 `null`，其餘函式一律先檢查這個並短路。提供 `signUpWithCode`/`signInWithCode`（由同步碼導出合成 email + 密碼，借用 Supabase 內建 email/password 登入），以及鏡射 `storage.js` 介面的 `getRecords`/`addRecord`/`addRecords`/`updateRecord`/`deleteRecord`/`getSettings`/`saveSettings`（camelCase↔snake_case 轉換），還有清除雲端資料用的 `deleteAllCloudData` |
 | `syncManager.js` | 同步協調中樞：`enableSyncNew()` 產生新碼並推送本機資料；`enableSyncJoin(code)` 驗證格式/檢查碼後登入，本機已有資料時回傳 `needsDecision` 交由 UI 詢問；`resolveJoin(strategy)` 依 `'merge'`/`'overwrite-with-cloud'` 完成加入；`runSync()` 逐筆用 `updatedAt` 決勝合併 records 與 settings；`resetEverything()` 供「清除所有紀錄」在同步啟用時連同雲端一起清空。以 `subscribe(callback)` 提供簡易 pub-sub，同步完成時通知訂閱者。在 `online` 事件、分頁回到前景（`visibilitychange`）與 App 啟動時（若已啟用同步）觸發，不使用輪詢 |
-| `useCloudSync.js` | 包裝 `syncManager.js` 給 React 用的 Hook，暴露 `{ status, enableSyncNew, enableSyncJoin, resolveJoin, revealCode, bindRecoveryEmail, disableSync, resetEverything }`；接受一個 `onSynced` callback（`App.jsx` 傳入 `usePeriodData` 的 `refreshFromStorage`），背景同步完成時自動觸發畫面更新 |
+| `useCloudSync.js` | 包裝 `syncManager.js` 給 React 用的 Hook，暴露 `{ status, enableSyncNew, enableSyncJoin, resolveJoin, revealCode, disableSync, resetEverything }`；接受一個 `onSynced` callback（`App.jsx` 傳入 `usePeriodData` 的 `refreshFromStorage`），背景同步完成時自動觸發畫面更新 |
 | `syncCode.js` | 定義 5 個彼此不重疊的主題詞庫（Cosmos／Reverie／Fortress／Tide／Wildwood，各 10 個形容詞/名詞/副詞/動詞），`generateSyncCode()` 隨機組出「主題詞-主題詞-4碼隨機英數-1碼檢查碼」格式的碼，`validateSyncCodeChecksum()` 在呼叫 Supabase 前先做格式與檢查碼驗證 |
 | `hash.js` | 純 JS SHA-256 實作，供 `cloudAdapter.deriveEmailFromCode` 把同步碼轉成穩定的合成 email；刻意不用 `crypto.subtle`，因為本機建置版以 `file://` 開啟時該 API 是否可用不穩定 |
 
@@ -233,7 +233,7 @@ Pental-Log/
 | `ReportView` | 取代主畫面的全畫面報表頁：時間區間選擇列（近 3 個月／近 6 個月／全部／自訂區間，預設「全部」，v1.17）、摘要統計、異常提醒、週期歷史表（依選定區間篩選，起始日**倒敘**排列，越接近現在排越上面，v1.17）、伴隨症狀頻率統計，提供「列印／另存為 PDF」按鈕（呼叫瀏覽器原生 `window.print()`，零依賴） |
 | `StatsView`（v1.12） | 取代主畫面的全畫面統計頁：「近 6 個月週期天數趨勢」（`CycleLengthChart`，長條圖，異常週期換狀態色＋⚠圖示，附平均線，每根長條直接標示天數）與「經量分佈」（`FlowDistributionChart`，量少/中/多三階單色相橫條 + 中性灰「未知」分段，ordinal 色階，色塊夠寬時直接標示百分比）。資料直接複用 `prediction.cycleHistory`（已經是 `groupIntoCycles` 的分組結果）與 `records`，篩選近 6 個月，不重複造輪子。兩張圖表皆手繪 SVG，零額外圖表庫依賴；兩個區塊各自可摺疊（標題列即為切換按鈕，預設展開），見 v1.13 |
 | `StatsPreview`（v1.12） | `SettingsPanel` 內嵌的精簡預覽版，直接複用 `CycleLengthChart`／`FlowDistributionChart` 的 `compact` 模式（省略座標軸/⚠標籤，但保留圖例文字說明與長條上的天數數值，見 v1.14、v1.15），下方「查看完整統計」按鈕開啟 `StatsView`；`SettingsPanel` 內以「週期圖表統計」手風琴包住整塊預覽，預設收起，見 v1.13 |
-| `SettingsPanel` | 調整平均經期/週期天數、自動填滿開關、排卵預測顯示開關、週期階段顏色提示（手風琴，展開後為四階段開關＋色票）、症狀記錄開關（手風琴，展開後為「症狀項目與顏色設定」：內建症狀的顯示/隱藏開關＋色票、自訂症狀新增/刪除）、異常提醒開關、查看報表入口、「週期圖表統計」手風琴（v1.12，預設收起，展開後為 `StatsPreview` 統計預覽與完整統計入口）、通知提醒開關與提前天數設定（v1.12，見 6.6）、清除所有資料；（v1.11，僅在 `cloudSync.status.configured` 為真時顯示）「雲端同步」手風琴：未啟用時可「建立新同步碼」或「輸入已有的同步碼」加入，已啟用時可顯示/隱藏碼、綁定救援 email、結束同步 |
+| `SettingsPanel` | 調整平均經期/週期天數、自動填滿開關、排卵預測顯示開關、週期階段顏色提示（手風琴，展開後為四階段開關＋色票）、症狀記錄開關（手風琴，展開後為「症狀項目與顏色設定」：內建症狀的顯示/隱藏開關＋色票、自訂症狀新增/刪除）、異常提醒開關、查看報表入口、「週期圖表統計」手風琴（v1.12，預設收起，展開後為 `StatsPreview` 統計預覽與完整統計入口）、通知提醒開關與提前天數設定（v1.12，見 6.6）、清除所有資料；（v1.11，僅在 `cloudSync.status.configured` 為真時顯示）「雲端同步」手風琴：未啟用時可選擇同步碼主題風格並「建立新同步碼」，或「輸入已有的同步碼」加入；已啟用時同步碼預設遮蔽、僅提供「複製」按鈕（v1.12 移除了顯示/隱藏切換與綁定救援 email，見 15.6 已知限制）、結束同步 |
 
 ---
 
@@ -460,6 +460,7 @@ flowchart LR
 | 無自動化測試 | 目前無單元測試（尤其 `cyclePrediction.js` 這類含邊界情況的純函式，最適合補測試）與 CI lint 關卡；v1.11 的同步碼/雜湊/本機 storage 邏輯有透過臨時腳本手動驗證過，但未固化為專案內的自動化測試。 |
 | 無 schema 版本控管 | `storage.js` 沒有資料版本欄位，未來若調整 Record/Settings 結構，舊資料需要手動處理遷移。 |
 | Tombstone 無限累積 | 軟刪除的紀錄會永久留在 `localStorage` 與 Supabase 的 `records` 表中，以個人使用規模（多年下來頂多數千筆）可接受，暫無清理機制。 |
+| 同步碼沒有救援機制 | v1.12 移除了「綁定救援 email」功能（實測發現與 Supabase 的帳號 email 驗證機制衝突，無法運作，見 15.2）。同步碼遺失即無法救援，使用者需自行妥善保管（例如存進密碼管理器）。 |
 
 ---
 
@@ -504,7 +505,7 @@ flowchart LR
 - **檢查碼**：`computeChecksumChar()` 用固定加權公式（仿身分證字號）對碼本體算出一個檢查字元，純粹用於**前端就地偵測打字錯誤**（`validateSyncCodeChecksum()` 在呼叫 Supabase 前就能擋掉明顯打錯的輸入），公式公開、不提供任何安全性。
 - **免帳號登入的實作方式**：`cloudAdapter.deriveEmailFromCode(code)` 用 `hash.js` 的純 JS SHA-256 把（正規化後的）同步碼算成一個合成 email（`<hash前32碼>@sync.petal-log.internal`），並直接拿同步碼本身當密碼，呼叫 Supabase 內建的 `signUp`/`signInWithPassword`。同一組碼永遠重算出同一個 email，不需要伺服器端查表；換裝置時輸入同一組碼即可登入同一個帳號。
 - **正規化**：`normalizeSyncCode()` 統一大小寫與空白，確保使用者用不同大小寫輸入同一組碼時仍能算出一致的 email／密碼。
-- **選配救援手段**：已登入狀態下可呼叫 `bindRecoveryEmail(email)`（`cloudSync.bindRecoveryEmail`）綁定真實 email，供同步碼遺失時的救援路徑；此步驟完全可略過。
+- **沒有救援 email 機制**：v1.11 一度規劃「綁定真實 email 供同步碼遺失時救援」，但實測發現 Supabase 會拒絕對「目前帳號 email 網域無法收信」的帳號呼叫 `updateUser`（即使新 email 合法也一樣被擋，因為驗證的是帳號現有的 email），而同步碼機制的合成 email 本來就不是真的能收信的網域，兩者直接衝突且無後台設定可解。v1.12 已移除這個功能與對應 UI，同步碼本身是唯一、也是必須妥善保管的復原方式，見 15.6、13 章已知限制。
 
 ### 15.3 資料庫 Schema（Supabase / Postgres）
 
@@ -563,7 +564,7 @@ create trigger settings_set_updated_at
 於 `SettingsPanel` 新增「雲端同步」手風琴區塊（僅在 `cloudSync.status.configured` 為真時顯示，即已設定 Supabase 環境變數）：
 
 - **未啟用**：可先用下拉選單選擇同步碼的主題風格（5 個主題名稱 + 「隨機」，預設隨機）；「啟用同步（建立新同步碼）」按鈕依選擇的主題產生新碼並顯示；「輸入已有的同步碼」文字框＋「加入」按鈕，格式/檢查碼錯誤、帳號不存在等各自有對應錯誤文案，且本機已有資料時會先跳出合併決策。
-- **已啟用**：同步碼預設遮蔽顯示（`••••••••••••`），可切換顯示／隱藏；可綁定救援 email（選填）；「結束同步（僅限本機）」只影響這台裝置，雲端資料與帳號仍在，之後可再用同一組碼加入。
+- **已啟用**：同步碼固定遮蔽顯示（`••••••••••••`，不提供顯示明碼的切換，避免介面文字/按鈕過多），只有一個「複製」按鈕可把碼複製到剪貼簿，點擊後短暫顯示「已複製」；「結束同步（僅限本機）」只影響這台裝置，雲端資料與帳號仍在，之後可再用同一組碼加入。
 - **「清除所有本機紀錄」按鈕在同步啟用時的行為**：改標籤為「清除所有紀錄（含雲端）」，confirm 訊息明確告知會連同雲端與其他已同步裝置的資料一起清除；實作上呼叫 `syncManager.resetEverything()`（連同 `cloudAdapter.deleteAllCloudData()` 清空雲端、結束本機同步、清空本機），避免「清除」按鈕在同步啟用時因為下次自動同步又把資料拉回來、變成沒清到的邏輯陷阱。
 
 ### 15.6 安全性與隱私考量
@@ -616,3 +617,4 @@ create trigger settings_set_updated_at
 | v1.15 | 2026-07-18 | `CycleLengthChart` 的長條上數值標籤（如「28天」）補回 `compact` 模式。原本 compact 沿用跟完整版一樣的留白比例（`maxValue` 乘 1.15）與底部留白（`TOP_PADDING`），繪圖高度較小導致最高長條頂到畫布頂端，數值標籤被推到 SVG 外面跟 `StatsPreview` 的圖表標題文字疊在一起；改為 compact 模式用獨立的留白比例（`HEADROOM.compact = 1.4`）與更小的底部留白（`COMPACT_BOTTOM_PADDING = 4`，compact 不畫座標軸日期標籤，不需要跟完整版一樣的底部空間），讓最高長條上方保留足夠空間放數值標籤 |
 | v1.16 | 2026-07-18 | 1) `analyzeCycleHistory` 新增 `today` 參數與 `ANOMALY_ALERT_WINDOW_MONTHS`（6 個月）：`cycleHistory` 陣列每一筆的 `isProlongedPeriod`／`isIrregularCycle` 仍如實標記、不受時間限制（`ReportView` 週期歷史表完整呈現），但驅動「提醒」的 `hasAnomalies`／`prolongedPeriodCount`／`irregularCycleCount` 改成只計入新增的 `isRecent`（近 6 個月內）欄位為真的週期，超過半年前的異常不再觸發 `AnomalyBanner` 或 `ReportView` 的「異常提醒」摘要區塊。2) 異常門檻調整：`NORMAL_CYCLE_MAX_DAYS` 35→45 天（週期不規律的絕對上限放寬，35～45 天之間但明顯偏離個人平均的情況交給既有的個人化門檻去抓）、`PROLONGED_PERIOD_DAYS` 7→8 天（經期過長門檻），`ReportView` 異常提醒摘要文字同步更新門檻說明。3) `QuickRecordModal`／`DayDetail` 新增紀錄時，經量欄位預設值從 `'medium'` 改為 `'unknown'`，不主動假設使用者沒特別選就是「量中」；`DayDetail` 編輯既有紀錄時仍沿用該筆紀錄原本的經量，不受影響 |
 | v1.17 | 2026-07-18 | `ReportView` 週期歷史表：1) 改為依起始日**倒敘**排列（越接近現在排越上面），只在 `ReportView` 顯示層反轉，不影響 `cycleHistory`／`usePeriodData` 等既有的正序資料假設；2) 新增時間區間選擇列（近 3 個月／近 6 個月／全部／自訂區間，預設「全部」，`.noPrint` 不會出現在列印結果），篩選週期歷史表、摘要統計（已記錄週期數／週期經期天數範圍）與伴隨症狀統計的資料範圍；「平均週期／經期天數」（沿用 `prediction` 既有演算法結果）與「異常提醒」次數（固定只看近 6 個月，見 v1.16）維持不受這個報表顯示區間影響，避免跟 App 本身的系統性數字混淆 |
+| v1.18 | 2026-07-18 | 雲端同步功能收尾調整：1) 補上「啟用同步」時可選擇同步碼主題風格（下拉選單，5 個主題名稱＋隨機，`syncCode.js` 的 `generateSyncCode`/`pickThemeWordPair` 新增可選的 `themeName` 參數，`THEME_LABELS` 提供中文顯示名稱），先前版本雖已設計 5 個獨立主題詞庫但只在系統端隨機挑選，未開放使用者選擇；2) 已啟用同步時的同步碼顯示簡化為單一「複製」按鈕（點擊複製到剪貼簿並短暫顯示「已複製」），移除原本的「顯示/隱藏」明碼切換，減少畫面文字與按鈕數量；3) **移除「綁定救援 email」功能**（UI 與 `cloudAdapter.bindRecoveryEmail`／`syncManager.bindRecoveryEmail`／`useCloudSync` 的對應介面）：實測發現 Supabase 會拒絕對「目前帳號 email 網域無法收信」的帳號呼叫 `updateUser`（即使新 email 合法也一樣被擋），這與同步碼機制的合成 email 設計直接衝突且無後台設定可解，詳見 15.2、15.6、第 13 章已知限制 |

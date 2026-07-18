@@ -39,12 +39,10 @@ export function SettingsPanel({
   const [isStatsSectionExpanded, setStatsSectionExpanded] = useState(false)
   const [selectedTheme, setSelectedTheme] = useState('random')
   const [joinCodeInput, setJoinCodeInput] = useState('')
-  const [isCodeRevealed, setCodeRevealed] = useState(false)
   const [syncBusy, setSyncBusy] = useState(false)
   const [syncError, setSyncError] = useState(null)
   const [pendingDecision, setPendingDecision] = useState(false)
-  const [recoveryEmailInput, setRecoveryEmailInput] = useState('')
-  const [recoveryEmailMessage, setRecoveryEmailMessage] = useState(null)
+  const [copyFeedback, setCopyFeedback] = useState(null)
   const [notificationPermission, setNotificationPermission] = useState(() => getPermission())
 
   if (!isOpen) return null
@@ -67,9 +65,7 @@ export function SettingsPanel({
     setSyncBusy(false)
     if (result.error) {
       setSyncError(SYNC_ERROR_MESSAGES[result.error.type] || '發生未知錯誤，請稍後再試')
-      return
     }
-    setCodeRevealed(true)
   }
 
   const handleJoinSync = async () => {
@@ -96,24 +92,23 @@ export function SettingsPanel({
     setJoinCodeInput('')
   }
 
+  const handleCopyCode = async () => {
+    const code = cloudSync.revealCode()
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopyFeedback('已複製')
+    } catch {
+      setCopyFeedback('複製失敗，請手動選取')
+    }
+    setTimeout(() => setCopyFeedback(null), 2000)
+  }
+
   const handleDisableSync = async () => {
     const confirmed = window.confirm(
       '確定要結束同步嗎？這台裝置之後不會再自動跟雲端同步，但雲端資料與其他裝置不受影響，之後可以再用同一組碼加入。'
     )
     if (!confirmed) return
     await cloudSync.disableSync()
-    setCodeRevealed(false)
-  }
-
-  const handleBindRecoveryEmail = async () => {
-    setRecoveryEmailMessage(null)
-    const { error } = await cloudSync.bindRecoveryEmail(recoveryEmailInput)
-    if (error) {
-      setRecoveryEmailMessage(`綁定失敗：${error.message}`)
-      return
-    }
-    setRecoveryEmailMessage('請至信箱點擊確認連結，完成後即可用該 email 救援同步碼。')
-    setRecoveryEmailInput('')
   }
 
   const handleToggleNotifications = async (checked) => {
@@ -446,40 +441,15 @@ export function SettingsPanel({
                     <div className={styles.row}>
                       <span>同步碼</span>
                       <span className={styles.rowControls}>
-                        <span className={styles.syncCodeDisplay}>
-                          {isCodeRevealed ? cloudSync.revealCode() : '••••••••••••'}
-                        </span>
-                        <button
-                          type="button"
-                          className={styles.smallDeleteButton}
-                          onClick={() => setCodeRevealed((v) => !v)}
-                        >
-                          {isCodeRevealed ? '隱藏' : '顯示'}
+                        <span className={styles.syncCodeDisplay}>••••••••••••</span>
+                        <button type="button" className={styles.smallDeleteButton} onClick={handleCopyCode}>
+                          {copyFeedback ?? '複製'}
                         </button>
                       </span>
                     </div>
                     <p className={styles.syncHint}>
-                      這組碼等同密碼，請勿分享給他人；換裝置時輸入同一組碼即可還原資料。
+                      這組碼等同密碼，請勿分享給他人；換裝置時貼上同一組碼即可還原資料。
                     </p>
-
-                    <div className={styles.addSymptomRow}>
-                      <input
-                        type="email"
-                        value={recoveryEmailInput}
-                        onChange={(e) => setRecoveryEmailInput(e.target.value)}
-                        placeholder="綁定 email 以防同步碼遺失（選填）"
-                        className={styles.textInput}
-                      />
-                      <button
-                        type="button"
-                        className={styles.addButton}
-                        onClick={handleBindRecoveryEmail}
-                        disabled={!recoveryEmailInput.trim()}
-                      >
-                        綁定
-                      </button>
-                    </div>
-                    {recoveryEmailMessage && <p className={styles.syncHint}>{recoveryEmailMessage}</p>}
 
                     <button type="button" className={styles.dangerButton} onClick={handleDisableSync}>
                       結束同步（僅限本機）
