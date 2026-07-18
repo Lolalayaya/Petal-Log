@@ -107,42 +107,25 @@ export function usePeriodData() {
       }
     }
 
-    if (existing) {
-      // 孤立的既有紀錄，旁邊沒有能接上的經期：單純更新這天自己的資料，不觸發新經期的
-      // 後續估算天數（避免使用者只是想改一天的經量，卻無中生有多出好幾天估算紀錄）。
-      setRecords(addRecordToStorage({ id: recordId, date, flow, symptoms, symptomNote, isEstimated: false }))
-      return {}
+    // 這天旁邊沒有任何可以接的既有經期：只記錄這一天本身，不會自己猜一個經期長度往後
+    // 推算補天數——自動補天數只用在「頭尾都已經是使用者自己選的日期」這種情況（上面的
+    // 接續邏輯），單獨一天不會無中生有變出好幾天的估算紀錄。
+    //
+    // 如果這是全新的一天（不是重新編輯既有紀錄），順便檢查跟前一次經期起始日距離是否
+    // 短到不合常理，回傳提示讓畫面顯示警示（不擋下新增）。
+    let shortGapWarning = false
+    let gapDays = null
+    if (!existing) {
+      const precedingCycle = cycles.filter((c) => c.startDate < date).pop() ?? null
+      gapDays = precedingCycle
+        ? differenceInCalendarDays(parseISO(date), parseISO(precedingCycle.startDate))
+        : null
+      shortGapWarning = gapDays !== null && gapDays < MIN_CYCLE_GAP_DAYS
     }
 
-    // 找出這個新起始日之前、最近一次已知經期的起始日，檢查間隔是否短到不合常理。
-    const precedingCycle = cycles.filter((c) => c.startDate < date).pop() ?? null
-    const gapDays = precedingCycle
-      ? differenceInCalendarDays(parseISO(date), parseISO(precedingCycle.startDate))
-      : null
-    const shortGapWarning = gapDays !== null && gapDays < MIN_CYCLE_GAP_DAYS
-
-    // 間隔過短時不自動產生後續估算天數，避免把不可能的「新經期」誤判擴散成一整串錯誤紀錄，
-    // 但仍記錄使用者實際點的這一天，並回傳提示讓畫面顯示警示（不擋下新增）。
-    if (settings.autoFillSubsequentDays && !shortGapWarning) {
-      const periodLength = prediction.averagePeriodLength || settings.avgPeriodLength
-      const newRecords = Array.from({ length: periodLength }, (_, i) => {
-        const d = format(addDays(parseISO(date), i), 'yyyy-MM-dd')
-        return {
-          id: `${d}-${Date.now()}-${i}`,
-          date: d,
-          flow: i === 0 ? flow : estimateSubsequentFlow(flow, i, periodLength),
-          isEstimated: i !== 0,
-          symptoms: i === 0 ? symptoms : [],
-          symptomNote: i === 0 ? symptomNote : '',
-        }
-      })
-      setRecords(addRecordsToStorage(newRecords))
-      return { shortGapWarning: false }
-    }
-
-    setRecords(addRecordToStorage({ id: `${date}-${Date.now()}`, date, flow, symptoms, symptomNote, isEstimated: false }))
+    setRecords(addRecordToStorage({ id: recordId, date, flow, symptoms, symptomNote, isEstimated: false }))
     return { shortGapWarning, gapDays }
-  }, [recordByDate, settings, prediction])
+  }, [recordByDate, settings])
 
   const editRecord = useCallback((id, patch) => {
     setRecords(updateRecordInStorage(id, patch))

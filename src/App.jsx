@@ -11,6 +11,7 @@ import { OnboardingFlow } from './components/OnboardingFlow/OnboardingFlow'
 import { AnomalyBanner } from './components/AnomalyBanner/AnomalyBanner'
 import { ReportView } from './components/ReportView/ReportView'
 import { getDayOfPeriod } from './utils/cyclePrediction'
+import logoIcon from './assets/logo.svg'
 import styles from './App.module.css'
 
 export default function App() {
@@ -72,7 +73,10 @@ export default function App() {
   return (
     <div className={styles.app}>
       <header className={styles.header}>
-        <h1 className={styles.logo}>Petal Log</h1>
+        <div className={styles.brand}>
+          <img src={logoIcon} alt="" className={styles.logoIcon} />
+          <h1 className={styles.logo}>Petal Log</h1>
+        </div>
         <button
           type="button"
           className={styles.settingsButton}

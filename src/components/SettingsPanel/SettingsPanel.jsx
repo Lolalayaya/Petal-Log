@@ -173,7 +173,7 @@ export function SettingsPanel({ isOpen, settings, onClose, onUpdateSettings, onR
         </label>
 
         <label className={styles.row}>
-          <span>選定第一天後自動記錄後續天數</span>
+          <span>自動補上頭尾之間的空缺天數</span>
           <input
             type="checkbox"
             checked={settings.autoFillSubsequentDays}

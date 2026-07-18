@@ -13,6 +13,17 @@
   margin-bottom: var(--space-lg);
 }
 
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.logoIcon {
+  width: 28px;
+  height: 28px;
+}
+
 .logo {
   font-size: var(--font-size-h1);
   font-weight: 700;
