@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { SYMPTOM_OPTIONS, CUSTOM_SYMPTOM_COLOR_PALETTE } from '../../utils/symptoms'
 import { THEME_LABELS } from '../../utils/syncCode'
+import { isNotificationSupported, getPermission, requestPermission } from '../../utils/notifications'
+import { StatsPreview } from '../StatsView/StatsPreview'
 import styles from './SettingsPanel.module.css'
 
 const PHASES = [
@@ -18,11 +20,23 @@ const SYNC_ERROR_MESSAGES = {
   'sign-in-failed': '找不到這組同步碼對應的資料，請確認輸入是否正確',
 }
 
-export function SettingsPanel({ isOpen, settings, onClose, onUpdateSettings, onResetAllData, onOpenReport, cloudSync }) {
+export function SettingsPanel({
+  isOpen,
+  settings,
+  records,
+  prediction,
+  onClose,
+  onUpdateSettings,
+  onResetAllData,
+  onOpenReport,
+  onOpenStats,
+  cloudSync,
+}) {
   const [newSymptomLabel, setNewSymptomLabel] = useState('')
   const [isSymptomSectionExpanded, setSymptomSectionExpanded] = useState(false)
   const [isPhaseSectionExpanded, setPhaseSectionExpanded] = useState(false)
   const [isSyncSectionExpanded, setSyncSectionExpanded] = useState(false)
+  const [isStatsSectionExpanded, setStatsSectionExpanded] = useState(false)
   const [selectedTheme, setSelectedTheme] = useState('random')
   const [joinCodeInput, setJoinCodeInput] = useState('')
   const [isCodeRevealed, setCodeRevealed] = useState(false)
@@ -31,6 +45,7 @@ export function SettingsPanel({ isOpen, settings, onClose, onUpdateSettings, onR
   const [pendingDecision, setPendingDecision] = useState(false)
   const [recoveryEmailInput, setRecoveryEmailInput] = useState('')
   const [recoveryEmailMessage, setRecoveryEmailMessage] = useState(null)
+  const [notificationPermission, setNotificationPermission] = useState(() => getPermission())
 
   if (!isOpen) return null
 
@@ -99,6 +114,14 @@ export function SettingsPanel({ isOpen, settings, onClose, onUpdateSettings, onR
     }
     setRecoveryEmailMessage('請至信箱點擊確認連結，完成後即可用該 email 救援同步碼。')
     setRecoveryEmailInput('')
+  }
+
+  const handleToggleNotifications = async (checked) => {
+    if (checked && isNotificationSupported() && getPermission() === 'default') {
+      const result = await requestPermission()
+      setNotificationPermission(result)
+    }
+    onUpdateSettings({ notificationsEnabled: checked })
   }
 
   const updatePhaseColor = (phase, color) => {
@@ -343,6 +366,64 @@ export function SettingsPanel({ isOpen, settings, onClose, onUpdateSettings, onR
         >
           查看週期報表（可列印／存為 PDF）
         </button>
+
+        <button
+          type="button"
+          className={styles.accordionToggle}
+          onClick={() => setStatsSectionExpanded((v) => !v)}
+          aria-expanded={isStatsSectionExpanded}
+        >
+          <span>週期圖表統計</span>
+          <span className={styles.chevron} aria-hidden="true">
+            {isStatsSectionExpanded ? '︿' : '﹀'}
+          </span>
+        </button>
+
+        {isStatsSectionExpanded && (
+          <StatsPreview
+            records={records}
+            cycleHistory={prediction.cycleHistory}
+            onOpenStats={() => {
+              onOpenStats()
+              onClose()
+            }}
+          />
+        )}
+
+        <div className={styles.sectionLabel}>通知提醒（選配）</div>
+
+        {!isNotificationSupported() ? (
+          <p className={styles.syncHint}>此瀏覽器不支援通知功能，無法使用提醒。</p>
+        ) : (
+          <>
+            <label className={styles.row}>
+              <span>開啟提醒通知</span>
+              <input
+                type="checkbox"
+                checked={settings.notificationsEnabled}
+                onChange={(e) => handleToggleNotifications(e.target.checked)}
+              />
+            </label>
+
+            {settings.notificationsEnabled && (
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>預計時間前幾天提醒</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="14"
+                  value={settings.reminderDaysBefore}
+                  onChange={(e) => onUpdateSettings({ reminderDaysBefore: Number(e.target.value) || 0 })}
+                  className={styles.numberInput}
+                />
+              </label>
+            )}
+
+            {settings.notificationsEnabled && notificationPermission === 'denied' && (
+              <p className={styles.syncHint}>瀏覽器通知權限已被拒絕，請至瀏覽器設定重新開啟才能收到提醒。</p>
+            )}
+          </>
+        )}
 
         {cloudSync?.status.configured && (
           <>

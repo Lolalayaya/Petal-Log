@@ -4,6 +4,7 @@ const FLOW_OPTIONS = [
   { value: 'light', label: '量少' },
   { value: 'medium', label: '量中' },
   { value: 'heavy', label: '量多' },
+  { value: 'unknown', label: '未知' },
 ]
 
 export function FlowPicker({ value, onChange }) {

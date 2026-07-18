@@ -18,7 +18,7 @@ export function DayDetail({
   onDelete,
   label = '記錄',
 }) {
-  const [flow, setFlow] = useState(record ? record.flow : 'medium')
+  const [flow, setFlow] = useState(record ? record.flow : 'unknown')
   const [symptoms, setSymptoms] = useState(record?.symptoms ?? [])
   const [symptomNote, setSymptomNote] = useState(record?.symptomNote ?? '')
 

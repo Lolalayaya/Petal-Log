@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { usePeriodData } from './hooks/usePeriodData'
 import { useCloudSync } from './hooks/useCloudSync'
+import { useNotificationReminder } from './hooks/useNotificationReminder'
 import { CalendarView } from './components/CalendarView/CalendarView'
 import { PredictionBanner } from './components/PredictionBanner/PredictionBanner'
 import { QuickRecordModal } from './components/QuickRecordModal/QuickRecordModal'
@@ -10,6 +11,7 @@ import { SettingsPanel } from './components/SettingsPanel/SettingsPanel'
 import { OnboardingFlow } from './components/OnboardingFlow/OnboardingFlow'
 import { AnomalyBanner } from './components/AnomalyBanner/AnomalyBanner'
 import { ReportView } from './components/ReportView/ReportView'
+import { StatsView } from './components/StatsView/StatsView'
 import { getDayOfPeriod } from './utils/cyclePrediction'
 import logoIcon from './assets/logo.svg'
 import styles from './App.module.css'
@@ -28,6 +30,7 @@ export default function App() {
   } = usePeriodData()
 
   const cloudSync = useCloudSync(refreshFromStorage)
+  useNotificationReminder(prediction, settings)
 
   const handleResetAllData = () => (cloudSync.status.enabled ? cloudSync.resetEverything() : resetAllData())
 
@@ -36,6 +39,7 @@ export default function App() {
   const [isQuickRecordOpen, setQuickRecordOpen] = useState(false)
   const [isSettingsOpen, setSettingsOpen] = useState(false)
   const [isReportOpen, setReportOpen] = useState(false)
+  const [isStatsOpen, setStatsOpen] = useState(false)
   const [gapWarning, setGapWarning] = useState(null)
 
   const handleRecordDay = (date, flow, symptoms, symptomNote) => {
@@ -68,6 +72,10 @@ export default function App() {
         onClose={() => setReportOpen(false)}
       />
     )
+  }
+
+  if (isStatsOpen) {
+    return <StatsView records={records} prediction={prediction} onClose={() => setStatsOpen(false)} />
   }
 
   return (
@@ -163,10 +171,13 @@ export default function App() {
       <SettingsPanel
         isOpen={isSettingsOpen}
         settings={settings}
+        records={records}
+        prediction={prediction}
         onClose={() => setSettingsOpen(false)}
         onUpdateSettings={updateSettings}
         onResetAllData={handleResetAllData}
         onOpenReport={() => setReportOpen(true)}
+        onOpenStats={() => setStatsOpen(true)}
         cloudSync={cloudSync}
       />
     </div>

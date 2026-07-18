@@ -1,0 +1,67 @@
+.wrapper {
+  width: 100%;
+}
+
+.svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* 單一 rose 色相、由淺到深三階，經 dataviz skill 的 ordinal 驗證器確認可讀性
+   （--ordinal 模式：單調亮度、相鄰階距、淺階對白底對比度皆通過）。 */
+.segment_light {
+  fill: #dba79f;
+}
+
+.segment_medium {
+  fill: #c88178;
+}
+
+.segment_heavy {
+  fill: var(--color-rose-600);
+}
+
+/* 未知（缺值）：中性灰，跟上面三階 rose 色階明確區隔，不會被誤讀成「更淺的量」 */
+.segment_unknown {
+  fill: var(--color-text-secondary);
+}
+
+.labelInk {
+  fill: var(--color-text-primary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.labelLight {
+  fill: #fff;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm) var(--space-md);
+  margin-top: var(--space-sm);
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.legendSwatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.empty {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+}

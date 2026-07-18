@@ -3,7 +3,7 @@
 | 項目 | 內容 |
 |---|---|
 | 專案名稱 | Petal Log |
-| 文件版本 | v1.11 |
+| 文件版本 | v1.17 |
 | 最後更新 | 2026-07-18 |
 | 狀態 | 現行版本（對應已實作功能） |
 
@@ -107,21 +107,30 @@ Pental-Log/
 ├── .github/workflows/deploy.yml   # CI/CD：build 後部署到 GitHub Pages
 ├── figma-export/                  # 設計稿匯出的靜態 HTML（UI 流程參考稿，非執行程式碼）
 ├── .env.example                   # 雲端同步環境變數範本（VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY）
+├── public/                        # 原樣複製進 dist/ 根目錄的靜態檔（v1.12）
+│   ├── favicon.svg                # 品牌圖示（四階段色瓣造型），同時作為 PWA manifest 圖示
+│   ├── manifest.webmanifest       # PWA manifest
+│   └── sw.js                      # 極簡 Service Worker，唯一目的是讓 showNotification() 可用，不做離線快取
 ├── src/
-│   ├── main.jsx                   # 進入點
-│   ├── App.jsx                    # 根元件，畫面組裝與路由狀態（onboarding / 主畫面），串接 usePeriodData 與 useCloudSync
+│   ├── main.jsx                   # 進入點，額外呼叫 registerServiceWorker()
+│   ├── App.jsx                    # 根元件，畫面組裝與路由狀態（onboarding / 主畫面 / 報表 / 統計），串接 usePeriodData、useCloudSync、useNotificationReminder
+│   ├── assets/
+│   │   └── logo.svg               # App 內標頭使用的品牌圖示（與 public/favicon.svg 同圖）
 │   ├── data/
-│   │   ├── storage.js             # localStorage 讀寫封裝（本機持久化層，含 updatedAt 時間戳與軟刪除 tombstone）
+│   │   ├── storage.js             # localStorage 讀寫封裝（本機持久化層，含 updatedAt 時間戳與軟刪除 tombstone、通知提醒的裝置本地狀態）
 │   │   ├── cloudAdapter.js        # Supabase 存取層：同步碼登入/註冊、records/settings 的 CRUD（camelCase↔snake_case 轉換）
 │   │   └── syncManager.js         # 同步協調：推拉比對、updatedAt 決勝、換裝置加入時的合併/覆蓋決策、事件觸發
 │   ├── hooks/
 │   │   ├── usePeriodData.js       # 資料狀態管理 + 串接領域邏輯
-│   │   └── useCloudSync.js        # 包裝 syncManager 給 UI 用的 Hook（同步狀態、啟用/加入/合併/結束同步）
+│   │   ├── useCloudSync.js        # 包裝 syncManager 給 UI 用的 Hook（同步狀態、啟用/加入/合併/結束同步）
+│   │   └── useNotificationReminder.js  # （v1.12）App 開啟/切回前景時檢查是否該跳提醒通知
 │   ├── utils/
 │   │   ├── cyclePrediction.js     # 週期預測演算法（純函式，含異常偵測）
 │   │   ├── symptoms.js            # 伴隨症狀選項定義 + 症狀頻率統計
 │   │   ├── syncCode.js            # 同步碼：5 個主題詞庫、產生規則、正規化與檢查碼驗證
-│   │   └── hash.js                # 純 JS SHA-256（供同步碼導出合成 email 使用，不依賴 crypto.subtle）
+│   │   ├── hash.js                # 純 JS SHA-256（供同步碼導出合成 email 使用，不依賴 crypto.subtle）
+│   │   ├── notifications.js       # （v1.12）通知提醒領域邏輯：權限、提醒時機判斷、中性文案、顯示通知
+│   │   └── registerServiceWorker.js    # （v1.12）註冊 public/sw.js，file:// 協定或不支援時安全跳過
 │   ├── components/
 │   │   ├── OnboardingFlow/        # 首次使用引導
 │   │   ├── EmptyStateOnboarding/  # 無紀錄時的空狀態
@@ -130,9 +139,10 @@ Pental-Log/
 │   │   ├── AnomalyBanner/         # 週期異常提醒條（週期不規律／經期過長）
 │   │   ├── QuickRecordModal/      # FAB 快速記錄
 │   │   ├── DayDetail/             # 單日詳情（檢視/編輯/刪除）
-│   │   ├── FlowPicker/            # 經量選擇（量少/中/多）共用元件
+│   │   ├── FlowPicker/            # 經量選擇（量少/中/多/未知）共用元件
 │   │   ├── SymptomPicker/         # 伴隨症狀多選共用元件
 │   │   ├── ReportView/            # 週期報表全畫面（摘要/歷史表/異常標記/症狀統計，可列印為 PDF）
+│   │   ├── StatsView/             # （v1.12）週期圖表統計：CycleLengthChart／FlowDistributionChart（手繪 SVG）、StatsView（全螢幕頁）、StatsPreview（SettingsPanel 內嵌精簡版）
 │   │   └── SettingsPanel/         # 設定面板
 │   └── styles/
 │       ├── tokens.css             # 設計 token（顏色/字級/間距/圓角）
@@ -196,7 +206,18 @@ Pental-Log/
 
 詳見第 15 章「雲端同步設計」。
 
-### 6.6 UI 元件
+### 6.6 通知提醒相關模組（v1.12，選配）
+
+專案沒有推播伺服器，這是「前景檢查」機制：只在 App 被開啟或切回前景時檢查是否該提醒，App 完全沒開啟時不會跳通知，見 14.1。
+
+| 模組 | 職責 |
+|---|---|
+| `notifications.js` | 純函式為主，不依賴 React。`isNotificationSupported`/`getPermission`/`requestPermission` 包裝瀏覽器 `Notification` API；`isReminderDue(prediction, settings, notificationState)` 判斷「今天」是否落在 `[nextPredictedDate - reminderDaysBefore, nextPredictedDate]` 區間內且這個預計日期還沒提醒過；`buildReminderContent` 產生固定中性文案（沿用第 2 章原則，不出現「經期」「生理期」等字眼）；`showReminderNotification` 優先透過 `navigator.serviceWorker.ready` 呼叫 `registration.showNotification()`，不可用時退回 `new Notification()` |
+| `useNotificationReminder.js` | 接受 `(prediction, settings)`，在 mount 與分頁回到前景（`visibilitychange`）時執行檢查，比照 `syncManager.js` 用事件觸發、不用輪詢的既有慣例；符合條件就顯示通知並把 `nextPredictedDate` 記進 `storage.saveNotificationState`，避免同一天重複提醒 |
+| `registerServiceWorker.js` | 註冊 `public/sw.js`。`'serviceWorker' in navigator` 為假或協定是 `file:`（本機雙擊開啟 `dist/index.html`）時直接短路跳過，呼應 `cloudAdapter.getSupabaseClient()` 的短路風格；`main.jsx` 呼叫一次 |
+| `public/sw.js` | 極簡 Service Worker：`install`/`activate` 只做基本生命週期處理（`skipWaiting`/`clients.claim`），`notificationclick` 讓點擊通知時聚焦既有視窗或開新視窗。刻意不做離線快取——Vite 輸出的 hashed 檔名若要做離線快取需要額外處理版本失效，超出目前範圍 |
+
+### 6.7 UI 元件
 
 | 元件 | 職責 |
 |---|---|
@@ -205,12 +226,14 @@ Pental-Log/
 | `CalendarView` | 月曆格線渲染、月份切換、標示「已記錄日」「預測日」「易孕期」「排卵日」與（選配）四階段色條、點擊進入日詳情 |
 | `PredictionBanner` | 顯示「本次週期第幾天／距離下次」「預計下次日期」「易孕期區間」（含免責提示） |
 | `AnomalyBanner` | 當 `prediction.hasAnomalies` 為真且 `settings.showAnomalyAlerts` 開啟時顯示，列出偵測到的異常次數，並提供「查看報表」按鈕開啟 `ReportView` |
-| `QuickRecordModal` | 由主畫面 FAB 觸發，快速記錄「今天或指定日期」的經量（不含症狀，維持最少點擊） |
-| `DayDetail` | 點選日曆某天後的詳情面板，可新增/編輯/刪除當天紀錄，顯示「經期第幾天」或「排卵日/易孕期」標註，並可選配顯示伴隨症狀記錄區塊 |
-| `FlowPicker` | 「量少 / 量中 / 量多」三選一元件，供 `QuickRecordModal` 與 `DayDetail` 共用 |
+| `QuickRecordModal` | 由主畫面 FAB 觸發，快速記錄「今天或指定日期」的經量（不含症狀，維持最少點擊）；經量預設選取「未知」（v1.16），不主動假設使用者沒特別選就是「量中」 |
+| `DayDetail` | 點選日曆某天後的詳情面板，可新增/編輯/刪除當天紀錄，顯示「經期第幾天」或「排卵日/易孕期」標註，並可選配顯示伴隨症狀記錄區塊；新增紀錄時經量預設選取「未知」（v1.16），編輯既有紀錄則沿用該筆紀錄原本的經量 |
+| `FlowPicker` | 「量少 / 量中 / 量多 / 未知」四選一元件，供 `QuickRecordModal` 與 `DayDetail` 共用；「未知」代表當天有出血但不確定/不記得經量，與「不建立當天紀錄」是兩回事（v1.13） |
 | `SymptomPicker` | 伴隨症狀多選晶片元件，選項來源為 `src/utils/symptoms.js` 的內建症狀（已排除 `settings.hiddenSymptoms` 中的項目）再併入 `settings.customSymptoms`；晶片顏色讀 `settings.symptomColors`（覆寫）或選項的 `defaultColor`；另有「其他」晶片，開啟後顯示自由文字輸入框，寫入 `Record.symptomNote`。供 `DayDetail` 使用 |
-| `ReportView` | 取代主畫面的全畫面報表頁：摘要統計、異常提醒、週期歷史表、伴隨症狀頻率統計，提供「列印／另存為 PDF」按鈕（呼叫瀏覽器原生 `window.print()`，零依賴） |
-| `SettingsPanel` | 調整平均經期/週期天數、自動填滿開關、排卵預測顯示開關、週期階段顏色提示（手風琴，展開後為四階段開關＋色票）、症狀記錄開關（手風琴，展開後為「症狀項目與顏色設定」：內建症狀的顯示/隱藏開關＋色票、自訂症狀新增/刪除）、異常提醒開關、查看報表入口、清除所有資料；（v1.11，僅在 `cloudSync.status.configured` 為真時顯示）「雲端同步」手風琴：未啟用時可「建立新同步碼」或「輸入已有的同步碼」加入，已啟用時可顯示/隱藏碼、綁定救援 email、結束同步 |
+| `ReportView` | 取代主畫面的全畫面報表頁：時間區間選擇列（近 3 個月／近 6 個月／全部／自訂區間，預設「全部」，v1.17）、摘要統計、異常提醒、週期歷史表（依選定區間篩選，起始日**倒敘**排列，越接近現在排越上面，v1.17）、伴隨症狀頻率統計，提供「列印／另存為 PDF」按鈕（呼叫瀏覽器原生 `window.print()`，零依賴） |
+| `StatsView`（v1.12） | 取代主畫面的全畫面統計頁：「近 6 個月週期天數趨勢」（`CycleLengthChart`，長條圖，異常週期換狀態色＋⚠圖示，附平均線，每根長條直接標示天數）與「經量分佈」（`FlowDistributionChart`，量少/中/多三階單色相橫條 + 中性灰「未知」分段，ordinal 色階，色塊夠寬時直接標示百分比）。資料直接複用 `prediction.cycleHistory`（已經是 `groupIntoCycles` 的分組結果）與 `records`，篩選近 6 個月，不重複造輪子。兩張圖表皆手繪 SVG，零額外圖表庫依賴；兩個區塊各自可摺疊（標題列即為切換按鈕，預設展開），見 v1.13 |
+| `StatsPreview`（v1.12） | `SettingsPanel` 內嵌的精簡預覽版，直接複用 `CycleLengthChart`／`FlowDistributionChart` 的 `compact` 模式（省略座標軸/⚠標籤，但保留圖例文字說明與長條上的天數數值，見 v1.14、v1.15），下方「查看完整統計」按鈕開啟 `StatsView`；`SettingsPanel` 內以「週期圖表統計」手風琴包住整塊預覽，預設收起，見 v1.13 |
+| `SettingsPanel` | 調整平均經期/週期天數、自動填滿開關、排卵預測顯示開關、週期階段顏色提示（手風琴，展開後為四階段開關＋色票）、症狀記錄開關（手風琴，展開後為「症狀項目與顏色設定」：內建症狀的顯示/隱藏開關＋色票、自訂症狀新增/刪除）、異常提醒開關、查看報表入口、「週期圖表統計」手風琴（v1.12，預設收起，展開後為 `StatsPreview` 統計預覽與完整統計入口）、通知提醒開關與提前天數設定（v1.12，見 6.6）、清除所有資料；（v1.11，僅在 `cloudSync.status.configured` 為真時顯示）「雲端同步」手風琴：未啟用時可「建立新同步碼」或「輸入已有的同步碼」加入，已啟用時可顯示/隱藏碼、綁定救援 email、結束同步 |
 
 ---
 
@@ -222,7 +245,7 @@ Pental-Log/
 {
   id: string          // 產生規則：`${date}-${Date.now()}` 或含 index 後綴
   date: string         // 'yyyy-MM-dd'
-  flow: 'light' | 'medium' | 'heavy'
+  flow: 'light' | 'medium' | 'heavy' | 'unknown'  // 'unknown'（v1.13）：當天有出血但不確定/不記得經量；`estimateSubsequentFlow` 遇到 'unknown' 會直接把後續估算天數也回傳 'unknown'（無法從「不知道」推算遞減趨勢），不特別當作例外處理
   symptoms: string[]   // 伴隨症狀代碼陣列（內建代碼見 `src/utils/symptoms.js`，或自訂症狀的 `custom-<timestamp>` id）；預設 []，自動填滿產生的後續天數不帶入首日症狀
   symptomNote: string  // 「其他」欄位使用者自行輸入的自由文字；預設 ''，同樣只有首日會帶入
   updatedAt: string    // （v1.11）ISO 時間戳，每次 add/update/delete 都會重新蓋章；未啟用雲端同步也會寫入，供將來啟用時直接使用，無需遷移
@@ -254,6 +277,8 @@ Pental-Log/
   customSymptoms: { id: string, label: string }[]  // 使用者自訂的症狀項目，預設 []，id 格式為 `custom-${Date.now()}`
   symptomColors: Record<string, string>            // 症狀代碼（含內建與自訂）→ hex 顏色的覆寫表，未設定的內建症狀退回 `SYMPTOM_OPTIONS` 的 `defaultColor`
   hiddenSymptoms: string[]          // 被隱藏、不在 `SymptomPicker` 顯示的內建症狀代碼，預設 []（全部顯示）；僅適用內建症狀，自訂症狀直接刪除即可
+  notificationsEnabled: boolean     // （v1.12）是否開啟提醒通知（預設 false，opt-in）
+  reminderDaysBefore: number        // （v1.12）預計經期前幾天提醒（預設 2）
   updatedAt: string | null          // （v1.11）ISO 時間戳，`saveSettings` 每次寫入都會重新蓋章；預設 null（從未存過）
 }
 ```
@@ -267,6 +292,7 @@ Pental-Log/
 | `petal-log:records` | `Record[]`，依日期排序（含軟刪除 tombstone 列） |
 | `petal-log:settings` | `Settings` |
 | `petal-log:sync-code` | （v1.11，選配）字串，目前裝置啟用同步時使用的同步碼；未啟用則不存在此 key |
+| `petal-log:notification-state` | （v1.12）`{ notifiedForDate: string \| null }`，裝置本地狀態，記錄「這個預計日期已經提醒過」避免同一天重複跳通知。刻意不放進 `Settings`，因為會被雲端同步的 `updatedAt` 決勝機制同步到其他裝置，但這是裝置本地才有意義的狀態 |
 
 > 目前沒有 schema 版本欄位；若未來調整資料結構，需在 `storage.js` 加入遷移（migration）邏輯，見第 13 章。
 
@@ -323,24 +349,25 @@ Pental-Log/
 
 ### 8.6 異常偵測與週期報表
 
-`analyzeCycleHistory(cycles, averageCycleLength, hasReliableAverage)` 逐一檢視 `groupIntoCycles` 分出的每一次週期，標記兩種異常（僅為日曆推算的粗略提示，**非醫療診斷**）：
+`analyzeCycleHistory(cycles, averageCycleLength, hasReliableAverage, today)` 逐一檢視 `groupIntoCycles` 分出的每一次週期，標記兩種異常（僅為日曆推算的粗略提示，**非醫療診斷**）：
 
 | 異常類型 | 判斷條件 |
 |---|---|
-| 經期過長 `isProlongedPeriod` | 該次週期的連續紀錄天數（`cycle.length`）超過 `PROLONGED_PERIOD_DAYS`（7 天） |
-| 週期不規律 `isIrregularCycle` | 該次週期到下次週期的間隔天數（`cycleLength`）小於 `NORMAL_CYCLE_MIN_DAYS`（21）、大於 `NORMAL_CYCLE_MAX_DAYS`（35），**或**（在 `hasReliableAverage` 為真，即至少有 2 次週期間隔可計算平均時）與 `averageCycleLength` 相差超過 `PERSONAL_CYCLE_DEVIATION_DAYS`（7 天）。最新一次週期因尚未有下一次起始日，`cycleLength` 為 `null`，不做此項判斷 |
+| 經期過長 `isProlongedPeriod` | 該次週期的連續紀錄天數（`cycle.length`）超過 `PROLONGED_PERIOD_DAYS`（8 天） |
+| 週期不規律 `isIrregularCycle` | 該次週期到下次週期的間隔天數（`cycleLength`）小於 `NORMAL_CYCLE_MIN_DAYS`（21）、大於 `NORMAL_CYCLE_MAX_DAYS`（45，v1.16 由 35 調整為 45——臨床上常見的「正常週期」定義是 21～35 天，這裡刻意放寬絕對上限，35～45 天之間但明顯偏離個人平均的情況交給下面的個人化門檻去抓，避免只因為比教科書定義寬一點，就把使用者自己一貫如此的週期標成異常），**或**（在 `hasReliableAverage` 為真，即至少有 2 次週期間隔可計算平均時）與 `averageCycleLength` 相差超過 `PERSONAL_CYCLE_DEVIATION_DAYS`（7 天）。最新一次週期因尚未有下一次起始日，`cycleLength` 為 `null`，不做此項判斷 |
 
-`getCyclePrediction` 回傳的 `cycleHistory` 陣列即為逐週期的 `{ startDate, endDate, periodLength, cycleLength, isProlongedPeriod, isIrregularCycle }`；`hasAnomalies`／`prolongedPeriodCount`／`irregularCycleCount` 為彙總結果。
+`getCyclePrediction` 回傳的 `cycleHistory` 陣列即為逐週期的 `{ startDate, endDate, periodLength, cycleLength, isProlongedPeriod, isIrregularCycle, isRecent }`；`isRecent`（v1.16）代表該次週期起始日落在近 `ANOMALY_ALERT_WINDOW_MONTHS`（6 個月）內。`hasAnomalies`／`prolongedPeriodCount`／`irregularCycleCount` 這三個彙總值（v1.16 起）**只計入 `isRecent` 為真的週期**，超過半年前的異常不會再被算進去；`cycleHistory` 陣列本身則不受此限制，每一筆歷史紀錄的 `isProlongedPeriod`／`isIrregularCycle` 仍如實標記，供 `ReportView` 的週期歷史表完整呈現。這個設計讓「提醒」只反映近期實際需要留意的狀況，「歷史記錄」則保留完整、不失真。
 
-- **`AnomalyBanner`**：`settings.showAnomalyAlerts`（預設 `true`）開啟且 `prediction.hasAnomalies` 為真時，於主畫面 `PredictionBanner` 下方顯示提醒文字與「查看報表」按鈕。
+- **`AnomalyBanner`**：`settings.showAnomalyAlerts`（預設 `true`）開啟且 `prediction.hasAnomalies` 為真（即近 6 個月內有異常）時，於主畫面 `PredictionBanner` 下方顯示提醒文字與「查看報表」按鈕。
 - **`ReportView`**：由 `SettingsPanel`「查看週期報表」或 `AnomalyBanner`「查看報表」開啟，於 `App.jsx` 以 `isReportOpen` 狀態整頁取代主畫面（同 Onboarding 的整頁切換模式），內容包含：
-  1. 摘要統計：已記錄週期數、平均週期／經期天數、週期／經期天數範圍（取自 `cycleHistory` 逐項最小最大值）。
-  2. 異常提醒（`hasAnomalies` 時顯示）：異常次數與門檻說明。
-  3. 週期歷史表：逐次週期的起始日、結束日、經期天數、週期天數，異常列以底色與 `⚠` 標示。
-  4. 伴隨症狀統計：`summarizeSymptoms(records, settings.customSymptoms)`（定義於 `src/utils/symptoms.js`）統計每個症狀代碼（含自訂）出現次數，並列出所有「其他」自由文字備註（依日期排序）。
-  5. 「列印／另存為 PDF」按鈕呼叫瀏覽器原生 `window.print()`；`ReportView.module.css` 用 `@media print` 隱藏返回／列印按鈕列（`.noPrint`），不需要任何 PDF 產生套件，維持專案「零額外重依賴」原則。
-  6. **列印防溢出**：`.table` 使用 `table-layout: fixed`，並在表格儲存格、統計清單、備註清單上加 `overflow-wrap: break-word` / `word-break: break-word`。原因：症狀備註是使用者自由輸入的文字，可能出現沒有空白可斷行的長字串（例如英數字混雜），若表格維持預設的 `table-layout: auto`，瀏覽器會依內容最小寬度撐開欄位，導致整張表格比列印頁面還寬而被裁切、且列印對話框的「縮放比例」對此無效（縮放是在版面配置完成後才套用，無法讓已經超寬的表格重新換行）。同時在 `@media print` 加上 `@page { margin: 12mm }` 與較小的表格字級，讓內容穩定落在紙張可印刷範圍內。
-  7. **列印安全邊距**：`@page { margin: 12mm }` 並非所有瀏覽器／印表機驅動、或「列印為 PDF」的轉檔路徑都會確實套用（例如部分環境會忽略 `@page` 規則），若只靠它留白，內容可能貼齊紙張最外緣，實際列印時被裁切。因此 `.page` 在 `@media print` 下額外保留 `padding: 8mm`，把安全邊距內建在內容本身的版面配置裡，不依賴 `@page` 是否生效，雙重保險。
+  1. **時間區間選擇列**（v1.17，`.noPrint`，不會出現在列印/PDF 結果裡，但選定的區間會反映在下面印出的內容中）：「近 3 個月」／「近 6 個月」／「全部」／「自訂區間」四顆按鈕，預設「全部」；選「自訂區間」時顯示起訖日期的 `<input type="date">`。此區間會篩選 2、3、4 點的資料範圍（`cycleHistory` 依 `startDate`、`records` 依 `date` 落在 `[rangeStart, rangeEnd]` 內），但**不**影響「平均週期／經期天數」（`averageCycleLength`／`averagePeriodLength` 沿用 `prediction` 既有、固定取最近 6 次週期的演算法結果，見 8.2）與「異常提醒」的次數（固定只看近 6 個月，見下）——這兩者是跟這次報表無關、App 本身既有的系統性數字，不隨報表的顯示區間改變。
+  2. 摘要統計：已記錄週期數、平均週期／經期天數、週期／經期天數範圍（後三者取自篩選後 `cycleHistory` 逐項最小最大值）。
+  3. 異常提醒（`hasAnomalies` 時顯示，僅計入近 6 個月內的異常，見 8.6，不受第 1 點的報表顯示區間影響）：異常次數與門檻說明。
+  4. 週期歷史表：逐次週期的起始日、結束日、經期天數、週期天數，依選定區間篩選後**依起始日倒敘排列**（v1.17，越接近現在排越上面，方便查看近況；`cycleHistory`／`usePeriodData` 等底層資料仍維持既有的正序假設，只在這裡顯示時反轉，不影響其他邏輯），異常列以底色與 `⚠` 標示；區間內沒有紀錄時顯示提示文字而非空表格。
+  5. 伴隨症狀統計：`summarizeSymptoms(records, settings.customSymptoms)`（定義於 `src/utils/symptoms.js`）統計選定區間內每個症狀代碼（含自訂）出現次數，並列出所有「其他」自由文字備註（依日期排序）；v1.17 起改吃篩選後的 `records`，與上面的區間選擇保持一致。
+  6. 「列印／另存為 PDF」按鈕呼叫瀏覽器原生 `window.print()`；`ReportView.module.css` 用 `@media print` 隱藏返回／列印按鈕列與時間區間選擇列（`.noPrint`），不需要任何 PDF 產生套件，維持專案「零額外重依賴」原則。
+  7. **列印防溢出**：`.table` 使用 `table-layout: fixed`，並在表格儲存格、統計清單、備註清單上加 `overflow-wrap: break-word` / `word-break: break-word`。原因：症狀備註是使用者自由輸入的文字，可能出現沒有空白可斷行的長字串（例如英數字混雜），若表格維持預設的 `table-layout: auto`，瀏覽器會依內容最小寬度撐開欄位，導致整張表格比列印頁面還寬而被裁切、且列印對話框的「縮放比例」對此無效（縮放是在版面配置完成後才套用，無法讓已經超寬的表格重新換行）。同時在 `@media print` 加上 `@page { margin: 12mm }` 與較小的表格字級，讓內容穩定落在紙張可印刷範圍內。
+  8. **列印安全邊距**：`@page { margin: 12mm }` 並非所有瀏覽器／印表機驅動、或「列印為 PDF」的轉檔路徑都會確實套用（例如部分環境會忽略 `@page` 規則），若只靠它留白，內容可能貼齊紙張最外緣，實際列印時被裁切。因此 `.page` 在 `@media print` 下額外保留 `padding: 8mm`，把安全邊距內建在內容本身的版面配置裡，不依賴 `@page` 是否生效，雙重保險。
 
 ---
 
@@ -427,7 +454,8 @@ flowchart LR
 | 雲端同步的熵取捨 | 同步碼安全性以 4 碼隨機英數為主要下限（約 30 bits），是為了碼好抄好記的刻意取捨，靠 Supabase 端登入失敗鎖定機制補強，非銀行等級安全性，詳見 15.2、15.6。 |
 | 合併決勝有時鐘誤差風險 | 換裝置加入且本機已有資料時，`updatedAt` 決勝可能受本機瀏覽器時鐘與 Supabase 伺服器時鐘之間的些微誤差影響，極短時間內（同一秒等級）跨裝置編輯同一天紀錄時，決勝結果可能與實際操作先後順序不符；日常使用（不同裝置編輯間隔通常數分鐘以上）幾乎不會被感知到。 |
 | 雲端同步需自行維護 Supabase 專案 | 屬於開發者自建的外部服務，不是內建於程式碼中；需要手動建立專案、跑 SQL migration、設定 Auth 選項，詳見 15.3。 |
-| 無通知提醒 | 不會主動提醒使用者「預計經期即將到來」。 |
+| 通知提醒是「前景檢查」，非真背景推播（v1.12） | 專案沒有推播伺服器，只能在 App 被使用者開啟或切回前景時檢查是否該提醒；App 完全沒開啟時不會跳通知。要做到真背景推播需擴充 Supabase（訂閱表＋Edge Function＋VAPID＋排程），且只有已啟用雲端同步的使用者才可能受惠，列入後續規劃，見 14.1。 |
+| PWA 圖示僅 SVG 一種格式（v1.12） | `manifest.webmanifest` 的 icon 目前只有 `favicon.svg`（`sizes: "any"`），沒有額外提供固定尺寸的 PNG（如 192×192／512×512）；多數現代瀏覽器可正常使用 SVG manifest 圖示，但少數環境（如較舊的 iOS Safari「加入主畫面」）對 SVG 圖示的支援不一致，可能顯示退回系統預設圖示。 |
 | 預測演算法簡化 | 直接取歷史週期算術平均，未排除異常值（如手誤造成的極端天數），週期不規律的使用者預測準確度會下降。 |
 | 無自動化測試 | 目前無單元測試（尤其 `cyclePrediction.js` 這類含邊界情況的純函式，最適合補測試）與 CI lint 關卡；v1.11 的同步碼/雜湊/本機 storage 邏輯有透過臨時腳本手動驗證過，但未固化為專案內的自動化測試。 |
 | 無 schema 版本控管 | `storage.js` 沒有資料版本欄位，未來若調整 Record/Settings 結構，舊資料需要手動處理遷移。 |
@@ -439,12 +467,13 @@ flowchart LR
 
 以下項目為已知方向，尚未排定優先順序與時程，設計時需注意「純本地、零後端」是目前的核心賣點，任何雲端相關功能都應設計為**選配（opt-in）**，不影響不需要該功能的使用者。
 
-> 雲端同步／帳號系統與多裝置備份已於 **v1.11** 實作（見第 15 章），故從本章移除；以下為仍待規劃的方向。
+> 雲端同步／帳號系統與多裝置備份已於 **v1.11** 實作（見第 15 章），故從本章移除；通知提醒與週期圖表統計已於 **v1.12** 實作，內容改為「已實作＋仍待規劃」並存，其餘為仍待規劃的方向。
 
 ### 14.1 通知提醒
 
-- Web 端可用 `Notification API` + Service Worker（需將專案升級為 PWA，含 manifest 與 SW 註冊）。
-- 提醒時機建議可設定（如「預計經期前 N 天」），通知文案沿用第 2 章的中性語言原則（固定行為，非設定）。
+- **v1.12 已實作前景檢查版**：專案升級為 PWA（`public/manifest.webmanifest` + `public/sw.js`，`registerServiceWorker.js` 註冊），透過 `Notification API`／`ServiceWorkerRegistration.showNotification()` 顯示提醒；提醒時機可在 `SettingsPanel` 設定「預計經期前幾天提醒」（`settings.reminderDaysBefore`，預設 2 天），通知文案固定沿用第 2 章的中性語言原則（不出現「經期」「生理期」等字眼，非使用者可調整的設定），詳見 6.6。
+- **已知限制**：這是「前景檢查」機制，只在 App 被開啟或切回前景時檢查是否該提醒，不是真背景推播，見第 13 章。
+- **後續規劃：真背景推播**——技術上可行，需擴充既有的選配 Supabase（v1.11 雲端同步）：新增一張推播訂閱表、一個用 VAPID 金鑰簽發 Web Push 的 Supabase Edge Function、以及排程（`pg_cron` 或外部排程器）定時檢查誰該收到提醒並推播。代價是只有已啟用雲端同步的使用者才可能拿到真背景推播，且複雜度遠高於前景檢查版，故列入後續規劃，不在 v1.12 範圍內。
 
 ### 14.2 資料匯出（CSV / JSON）
 
@@ -454,8 +483,9 @@ flowchart LR
 
 ### 14.3 週期圖表統計
 
-- 新增如「近 6 個月週期天數趨勢」「經量分佈」等圖表，呈現於 `SettingsPanel` 或新增獨立的「統計」頁籤。
-- 資料來源可直接複用 `cyclePrediction.js` 的 `groupIntoCycles` 分組結果，避免重複造輪子；圖表繪製可先評估用輕量 SVG 手刻，維持目前「零額外重依賴」的原則，再視需求導入圖表庫。
+- **v1.12 已實作**：新增獨立的「統計」全螢幕頁面 `StatsView`（見 6.7），內含「近 6 個月週期天數趨勢」（`CycleLengthChart`）與「經量分佈」（`FlowDistributionChart`）兩張圖表；`SettingsPanel` 內嵌精簡預覽版 `StatsPreview`，點擊「查看完整統計」開啟 `StatsView`。
+- 資料來源直接複用 `prediction.cycleHistory`（`cyclePrediction.js` 的 `groupIntoCycles` 分組結果），避免重複造輪子；圖表繪製採輕量 SVG 手刻，維持「零額外重依賴」的原則，未引入圖表庫。
+- 色彩與圖表規格經 dataviz 驗證器確認可讀性：週期天數長條圖用單一 rose 色代表正常週期、異常週期（`isIrregularCycle`）換成保留的 amber 狀態色並附 ⚠ 圖示與圖例（不單靠顏色判讀）；經量分佈的量少/中/多是同一變數的三個遞增等級（ordinal），用單一色相由淺到深三階表達順序，而非各給一個不相關的分類色。
 
 ---
 
@@ -560,6 +590,7 @@ create trigger settings_set_updated_at
 | 自動填滿（Auto-fill subsequent days） | 記錄經期首日時，依平均經期天數自動建立後續天數紀錄的設定 |
 | 同步碼（Sync code） | v1.11 雲端同步使用的免帳號登入憑證，格式為「主題詞-主題詞-4碼隨機英數-1碼檢查碼」，等同密碼，見第 15.2 節 |
 | 軟刪除／Tombstone | 刪除紀錄時不真的移除資料列，只標記 `deletedAt` 時間戳，讓刪除動作能正確同步到其他裝置，見第 15.4 節 |
+| 前景檢查（Foreground check） | v1.12 通知提醒的運作方式：只在 App 被開啟或切回前景時檢查是否該提醒，App 沒開啟時不會跳通知，與需要推播伺服器的真背景推播不同，見 14.1 |
 
 ---
 
@@ -579,3 +610,9 @@ create trigger settings_set_updated_at
 | v1.9 | 2026-07-11 | 移除 `neutralLanguage` 設定：實際影響範圍僅 FAB／快速記錄／日詳情等少數按鈕文字，且中性化本來就是預設值，改為固定行為，不再是可關閉的開關。`SettingsPanel` 移除對應開關；`App.jsx` 的 `recordLabel` 變數移除，改用元件既有的 `'記錄'` 預設值 |
 | v1.10 | 2026-07-14 | `vite.config.js` 改為依 `CI` 環境變數區分兩種建置：本機建置輸出相對路徑＋IIFE 傳統 script（並用自訂外掛移除 `type="module"`／`crossorigin`），讓 `npm run build` 產出的 `dist/index.html` 可以直接雙擊在瀏覽器開啟；CI（GitHub Pages）建置行為不變 |
 | v1.11 | 2026-07-18 | 新增選配的雲端同步功能（見第 15 章）：1) 免帳號的「同步碼」機制（`syncCode.js` 5 個主題詞庫、`hash.js` 純 JS SHA-256 導出合成 email，借用 Supabase 內建 email/password 登入）；2) `storage.js` 新增 `updatedAt`／`deletedAt`（軟刪除）欄位與只給同步層用的 raw 讀寫函式；3) 新增 `cloudAdapter.js`（Supabase 存取層）、`syncManager.js`（推拉比對、`updatedAt` 決勝、換裝置合併/覆蓋決策）、`useCloudSync.js`；4) `SettingsPanel` 新增「雲端同步」手風琴區塊，「清除所有紀錄」在同步啟用時改為連同雲端一併清除；5) 新增 `.env.example`，`deploy.yml` 支援透過 GitHub Actions secrets 帶入 Supabase 環境變數；全程 opt-in，未設定環境變數或未啟用同步時行為與 v1.10 完全一致 |
+| v1.12 | 2026-07-18 | 實作 roadmap 14.1 通知提醒與 14.3 週期圖表統計：1) 專案升級為 PWA（`public/manifest.webmanifest`、`public/sw.js`、`registerServiceWorker.js`），`sw.js` 刻意不做離線快取，唯一目的是讓 `showNotification()` 可用；2) 新增 `utils/notifications.js`（權限、提醒時機判斷、固定中性文案）與 `hooks/useNotificationReminder.js`（App 開啟/切回前景時前景檢查，非真背景推播），`storage.js` 新增 `notificationsEnabled`／`reminderDaysBefore` 設定與裝置本地的 `petal-log:notification-state`（刻意不放進會被雲端同步的 Settings）；3) 新增 `components/StatsView/`：`CycleLengthChart`／`FlowDistributionChart` 手繪 SVG 圖表（色彩經 dataviz 驗證器驗證），`StatsView` 全螢幕統計頁與 `SettingsPanel` 內嵌的 `StatsPreview` 精簡版，資料直接複用 `prediction.cycleHistory`，未引入圖表庫；4) `SettingsPanel` 新增通知提醒開關與統計預覽區塊 |
+| v1.13 | 2026-07-18 | 1) `FlowPicker` 新增第四個選項「未知」（`Record.flow` 新增 `'unknown'`），代表當天有出血但不確定/不記得經量，與「不建立當天紀錄」是兩回事；`estimateSubsequentFlow` 遇到 `'unknown'` 直接讓後續估算天數也回傳 `'unknown'`，不特別處理。2) `FlowDistributionChart` 新增「未知」分段，用中性灰（`--color-text-secondary`）跟三階 rose 色階明確區隔（避免被誤讀成更淺的量），色塊夠寬時直接在圖上標示百分比（依 fill 明度挑 ink／白色文字，確保對比）。3) `CycleLengthChart` 每根長條直接標示天數數值（不用再 hover 才看得到），異常週期的 ⚠ 圖示移到數值上方，`TOP_PADDING` 從 24 調整為 40 讓兩層文字有足夠空間。4) `StatsView` 兩個區塊（週期天數趨勢／經量分佈）標題列改為可摺疊的手風琴切換按鈕，預設展開；`SettingsPanel` 內嵌的統計預覽改包進「週期圖表統計」手風琴，預設收起，跟其他設定區塊風格一致 |
+| v1.14 | 2026-07-18 | `CycleLengthChart`／`FlowDistributionChart` 的圖例文字說明（色票＋標籤，`FlowDistributionChart` 另含天數/百分比）原本只在非 `compact` 模式顯示，`StatsPreview`（`SettingsPanel` 內嵌精簡版）因此看不出色塊代表什麼；改為不論 `compact` 與否都顯示圖例，只有座標軸文字、⚠ 圖示、長條上數值仍保留給完整版 `StatsView`，讓精簡預覽也能看懂圖表在畫什麼 |
+| v1.15 | 2026-07-18 | `CycleLengthChart` 的長條上數值標籤（如「28天」）補回 `compact` 模式。原本 compact 沿用跟完整版一樣的留白比例（`maxValue` 乘 1.15）與底部留白（`TOP_PADDING`），繪圖高度較小導致最高長條頂到畫布頂端，數值標籤被推到 SVG 外面跟 `StatsPreview` 的圖表標題文字疊在一起；改為 compact 模式用獨立的留白比例（`HEADROOM.compact = 1.4`）與更小的底部留白（`COMPACT_BOTTOM_PADDING = 4`，compact 不畫座標軸日期標籤，不需要跟完整版一樣的底部空間），讓最高長條上方保留足夠空間放數值標籤 |
+| v1.16 | 2026-07-18 | 1) `analyzeCycleHistory` 新增 `today` 參數與 `ANOMALY_ALERT_WINDOW_MONTHS`（6 個月）：`cycleHistory` 陣列每一筆的 `isProlongedPeriod`／`isIrregularCycle` 仍如實標記、不受時間限制（`ReportView` 週期歷史表完整呈現），但驅動「提醒」的 `hasAnomalies`／`prolongedPeriodCount`／`irregularCycleCount` 改成只計入新增的 `isRecent`（近 6 個月內）欄位為真的週期，超過半年前的異常不再觸發 `AnomalyBanner` 或 `ReportView` 的「異常提醒」摘要區塊。2) 異常門檻調整：`NORMAL_CYCLE_MAX_DAYS` 35→45 天（週期不規律的絕對上限放寬，35～45 天之間但明顯偏離個人平均的情況交給既有的個人化門檻去抓）、`PROLONGED_PERIOD_DAYS` 7→8 天（經期過長門檻），`ReportView` 異常提醒摘要文字同步更新門檻說明。3) `QuickRecordModal`／`DayDetail` 新增紀錄時，經量欄位預設值從 `'medium'` 改為 `'unknown'`，不主動假設使用者沒特別選就是「量中」；`DayDetail` 編輯既有紀錄時仍沿用該筆紀錄原本的經量，不受影響 |
+| v1.17 | 2026-07-18 | `ReportView` 週期歷史表：1) 改為依起始日**倒敘**排列（越接近現在排越上面），只在 `ReportView` 顯示層反轉，不影響 `cycleHistory`／`usePeriodData` 等既有的正序資料假設；2) 新增時間區間選擇列（近 3 個月／近 6 個月／全部／自訂區間，預設「全部」，`.noPrint` 不會出現在列印結果），篩選週期歷史表、摘要統計（已記錄週期數／週期經期天數範圍）與伴隨症狀統計的資料範圍；「平均週期／經期天數」（沿用 `prediction` 既有演算法結果）與「異常提醒」次數（固定只看近 6 個月，見 v1.16）維持不受這個報表顯示區間影響，避免跟 App 本身的系統性數字混淆 |

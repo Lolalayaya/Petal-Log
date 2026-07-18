@@ -1,0 +1,13 @@
+{
+  "name": "Petal Log",
+  "short_name": "Petal Log",
+  "description": "輕量、免帳號的個人生活記錄工具",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#fbf6f3",
+  "theme_color": "#b5645c",
+  "icons": [
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

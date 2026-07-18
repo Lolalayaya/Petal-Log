@@ -1,5 +1,6 @@
 const RECORDS_KEY = 'petal-log:records'
 const SETTINGS_KEY = 'petal-log:settings'
+const NOTIFICATION_STATE_KEY = 'petal-log:notification-state'
 
 const DEFAULT_SETTINGS = {
   avgPeriodLength: 5,
@@ -22,6 +23,8 @@ const DEFAULT_SETTINGS = {
   customSymptoms: [],
   symptomColors: {},
   hiddenSymptoms: [],
+  notificationsEnabled: false,
+  reminderDaysBefore: 2,
   // 雲端同步預留欄位：settings 整包比較新舊時使用（見雲端同步規劃）。
   updatedAt: null,
 }
@@ -110,6 +113,19 @@ export function saveSettings(settings) {
 export function clearAllData() {
   localStorage.removeItem(RECORDS_KEY)
   localStorage.removeItem(SETTINGS_KEY)
+  localStorage.removeItem(NOTIFICATION_STATE_KEY)
+}
+
+// 通知提醒的裝置本地狀態（見 SDD 14.1）：記錄「這個預計日期已經提醒過」，避免同一天重複跳通知。
+// 刻意不放進 Settings——Settings 會透過雲端同步的 updatedAt 決勝機制同步到其他裝置，但「這台裝置
+// 今天有沒有跳過通知」是裝置本地狀態，同步過去會讓其他裝置誤判成「已經通知過」而不再提醒。
+export function getNotificationState() {
+  return read(NOTIFICATION_STATE_KEY, { notifiedForDate: null })
+}
+
+export function saveNotificationState(state) {
+  write(NOTIFICATION_STATE_KEY, state)
+  return state
 }
 
 // ---- 以下只給雲端同步層使用：寫入時保留呼叫端傳入的 updatedAt/deletedAt 原始值，

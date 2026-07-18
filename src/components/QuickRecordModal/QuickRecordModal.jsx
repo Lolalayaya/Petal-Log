@@ -6,7 +6,7 @@ import styles from './QuickRecordModal.module.css'
 export function QuickRecordModal({ isOpen, onClose, onSave, label = '記錄' }) {
   const today = format(new Date(), 'yyyy-MM-dd')
   const [date, setDate] = useState(today)
-  const [flow, setFlow] = useState('medium')
+  const [flow, setFlow] = useState('unknown')
 
   if (!isOpen) return null
 

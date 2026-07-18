@@ -1,0 +1,97 @@
+.wrapper {
+  width: 100%;
+}
+
+.svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.rect {
+  fill: var(--color-rose-600);
+}
+
+.rectAnomaly {
+  fill: var(--color-amber-600);
+}
+
+.bar:hover .rect,
+.bar:focus .rect {
+  fill: #9d5049;
+}
+
+.bar:hover .rectAnomaly,
+.bar:focus .rectAnomaly {
+  fill: #ad7620;
+}
+
+.bar {
+  outline: none;
+}
+
+.warningIcon {
+  font-size: 10px;
+}
+
+.valueLabel {
+  font-size: 10px;
+  fill: var(--color-text-secondary);
+  font-family: var(--font-family-numeric);
+}
+
+.valueLabelCompact {
+  font-size: 8px;
+  fill: var(--color-text-secondary);
+  font-family: var(--font-family-numeric);
+}
+
+.axisLabel {
+  font-size: 9px;
+  fill: var(--color-text-secondary);
+  font-family: var(--font-family-numeric);
+}
+
+.averageLine {
+  stroke: var(--color-text-secondary);
+  stroke-width: 1;
+  opacity: 0.5;
+}
+
+.averageLabel {
+  font-size: 9px;
+  fill: var(--color-text-secondary);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-md);
+  margin-top: var(--space-sm);
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.legendSwatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--color-rose-600);
+  display: inline-block;
+}
+
+.legendSwatchAnomaly {
+  background: var(--color-amber-600);
+}
+
+.empty {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-caption);
+}
