@@ -59,6 +59,12 @@ export function usePeriodData() {
     // 一天補、也不用刪掉重記。跟前一個既有經期接起來會過長（超過
     // MAX_BRIDGEABLE_PERIOD_LENGTH）時則不接，交給下面的新經期／間隔過短判斷處理，
     // 避免把兩次不同的經期誤接成一次。
+    //
+    // 這裡補出來的天數視為「確認」而不是「估算」：因為頭尾兩天都是使用者自己選的日期，
+    // 中間只是幫忙把兩個已知的點連起來，不像單獨一天往後用平均經期天數用猜的，所以不用
+    // 再讓使用者額外確認一次。真正的「估算、需要使用者確認」樣式只保留給日曆上原本就有
+    // 的「預測下次經期」（prediction.predictedDates，淺紫色虛線），那才是真正沒有任何
+    // 使用者輸入依據、純粹用平均週期天數推算出來的天數。
     if (settings.autoFillSubsequentDays) {
       const backwardCycle = cycles.filter((c) => c.lastDate < date).pop() ?? null
       if (backwardCycle) {
@@ -73,7 +79,7 @@ export function usePeriodData() {
               id: `${d}-${Date.now()}-${i}`,
               date: d,
               flow: estimateSubsequentFlow(cycleStartFlow, i, totalLength),
-              isEstimated: true,
+              isEstimated: false,
               symptoms: [],
               symptomNote: '',
             })
@@ -96,7 +102,7 @@ export function usePeriodData() {
               id: `${d}-${Date.now()}-${i}`,
               date: d,
               flow: estimateSubsequentFlow(flow, i, totalLength),
-              isEstimated: true,
+              isEstimated: false,
               symptoms: [],
               symptomNote: '',
             })
