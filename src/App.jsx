@@ -139,6 +139,10 @@ export default function App() {
         + 記錄
       </button>
 
+      <footer className={styles.footer}>
+        <p className={styles.copyright}>© {new Date().getFullYear()} Lola Tseng</p>
+      </footer>
+
       <QuickRecordModal
         isOpen={isQuickRecordOpen}
         onClose={() => setQuickRecordOpen(false)}

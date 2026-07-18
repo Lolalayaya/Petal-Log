@@ -1,7 +1,7 @@
 .app {
   max-width: 480px;
   margin: 0 auto;
-  padding: var(--space-lg) var(--space-md) 96px;
+  padding: var(--space-lg) var(--space-md) 132px;
   position: relative;
   min-height: 100vh;
 }
@@ -69,7 +69,7 @@
 
 .fab {
   position: fixed;
-  bottom: var(--space-lg);
+  bottom: 60px;
   left: 50%;
   transform: translateX(-50%);
   border: none;
@@ -80,4 +80,18 @@
   font-weight: 600;
   padding: var(--space-md) var(--space-xl);
   box-shadow: var(--shadow-surface);
+}
+
+.footer {
+  position: fixed;
+  bottom: var(--space-sm);
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+}
+
+.copyright {
+  font-size: var(--font-size-micro);
+  color: var(--color-text-secondary);
 }
