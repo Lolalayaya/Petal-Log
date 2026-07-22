@@ -483,19 +483,35 @@ function exportResponsesToGitHub() {
   }
 
   const form = FormApp.openById(formId)
-  const formResponses = form.getResponses()
 
+  // 題目未必都會出現在每一筆回覆裡：使用者沒有動過的選填題，
+  // getItemResponses() 直接不會產生對應項目（不是回傳空字串），
+  // 如果只靠陣列位置對應題目，中間任何一題被跳過都會讓後面全部錯位。
+  // 改用每一題在表單裡穩定不變的 item id 當 key，不管有沒有跳過都不會對錯。
+  // schema 同時記錄目前表單題目的順序與標題，供人工核對／跟 .gs 腳本的題目順序比對。
+  const schema = form
+    .getItems()
+    .filter(
+      (item) => item.getType() !== FormApp.ItemType.PAGE_BREAK && item.getType() !== FormApp.ItemType.SECTION_HEADER
+    )
+    .map((item, index) => ({ id: item.getId(), order: index, title: item.getTitle() }))
+
+  const formResponses = form.getResponses()
   const responses = formResponses.map((fr) => ({
     timestamp: fr.getTimestamp().toISOString(),
     answers: fr.getItemResponses().map((ir) => {
       const resp = ir.getResponse()
-      return Array.isArray(resp) ? resp.join('; ') : String(resp)
+      return {
+        itemId: ir.getItem().getId(),
+        value: Array.isArray(resp) ? resp.join('; ') : String(resp),
+      }
     }),
   }))
 
   const payload = {
     exportedAt: new Date().toISOString(),
     responseCount: responses.length,
+    schema,
     responses,
   }
 
