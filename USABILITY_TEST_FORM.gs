@@ -368,6 +368,8 @@ function createUsabilityTestForm() {
     .setTitle('設定裡的「異常提醒」「報表匯出」「提醒通知」這類功能，你會不會實際去用？在什麼情況下你會想用？')
     .setRequired(false)
 
+  PropertiesService.getScriptProperties().setProperty('FORM_ID', form.getId())
+
   Logger.log('表單建立完成！')
   Logger.log('編輯連結（自己用）：' + form.getEditUrl())
   Logger.log('填寫連結（分享給朋友）：' + form.getPublishedUrl())
@@ -376,4 +378,147 @@ function createUsabilityTestForm() {
     editUrl: form.getEditUrl(),
     publishedUrl: form.getPublishedUrl(),
   }
+}
+
+/**
+ * ---------------------------------------------------------------------------
+ * 每日回覆同步（方案 A）
+ * ---------------------------------------------------------------------------
+ * 排程中的 Claude Code 雲端代理所在的執行環境，網路政策不允許直接連到
+ * docs.google.com（curl／WebFetch 都會被擋），所以改成反過來：由 Google 這邊
+ * 主動把表單原始回覆推回 GitHub repo，雲端代理只需要讀 repo 裡已經有的檔案，
+ * 完全不用再連 Google。
+ *
+ * 一次性設定步驟：
+ * 1. 到 GitHub 建立一個 Fine-grained Personal Access Token
+ *    （https://github.com/settings/personal-access-tokens/new），
+ *    Repository access 只勾選 Lolalayaya/Petal-Log 這一個 repo，
+ *    Permissions 只需要 Contents: Read and write，其他都不用給。
+ * 2. 回到這個 Apps Script 專案 → 左側齒輪圖示「Project Settings」→
+ *    「Script Properties」→ 新增一筆：key 填 GITHUB_TOKEN，value 貼上剛剛
+ *    複製的 token（不要把 token 貼進程式碼本身，Script Properties 是給密鑰用的
+ *    安全儲存位置，不會出現在原始碼或版本控制裡）。
+ * 3. 上方函式選單選 installDailySync，點執行（▶）。第一次執行會多跳一次
+ *    Drive 存取授權（用來自動找到表單），允許即可。這個函式會：
+ *    - 自動搜尋並記住表單 ID
+ *    - 設定每天自動同步一次的觸發器（預設約台北時間早上 6 點，比 Claude
+ *      排程的早上 9 點提早 3 小時，確保資料夠新鮮）
+ *    - 立刻手動跑一次同步，確認整條路徑（GitHub token 權限、表單存取）沒問題
+ * 4. 執行完成後可以到 GitHub 的 Petal-Log repo 檢查有沒有多出一個
+ *    .usability-form-responses.json 檔案，內容是目前所有回覆的原始資料。
+ *
+ * 注意：這個檔案會進到 Petal-Log 這個公開 repo 的 git 歷史，包含每位朋友填寫的
+ * 開放式文字回饋（暱稱欄位是選填，不強制真實姓名，但文字回饋本身無法完全匿名）。
+ * 如果之後想改成不進公開 repo，需要另外建一個私人 repo 存放這個檔案，
+ * 目前先接受這個取捨以求簡單。
+ *
+ * 如果 Apps Script 的專案時區不是 Asia/Taipei，下面 atHour(6) 對應的實際時間
+ * 會跟著時區設定跑掉，可以到 Project Settings 檢查／調整時區。
+ */
+
+const GITHUB_REPO = 'Lolalayaya/Petal-Log'
+const GITHUB_DATA_PATH = '.usability-form-responses.json'
+const GITHUB_BRANCH = 'main'
+const FORM_TITLE = 'Petal Log 易用性測試（自助填寫版）'
+
+function findFormIdByTitle_() {
+  const files = DriveApp.getFilesByType(MimeType.GOOGLE_FORMS)
+  while (files.hasNext()) {
+    const file = files.next()
+    if (file.getName() === FORM_TITLE) {
+      return file.getId()
+    }
+  }
+  throw new Error('找不到標題為「' + FORM_TITLE + '」的表單，如果表單標題被改過，請改用 PropertiesService 手動設定 FORM_ID')
+}
+
+function pushJsonToGithub_(path, jsonString, commitMessage) {
+  const token = PropertiesService.getScriptProperties().getProperty('GITHUB_TOKEN')
+  if (!token) {
+    throw new Error('缺少 GITHUB_TOKEN，請先到 Project Settings → Script Properties 設定')
+  }
+
+  const apiUrl = 'https://api.github.com/repos/' + GITHUB_REPO + '/contents/' + path
+  const headers = {
+    Authorization: 'Bearer ' + token,
+    Accept: 'application/vnd.github+json',
+  }
+
+  let sha = null
+  const getResp = UrlFetchApp.fetch(apiUrl + '?ref=' + GITHUB_BRANCH, {
+    headers,
+    muteHttpExceptions: true,
+  })
+  if (getResp.getResponseCode() === 200) {
+    sha = JSON.parse(getResp.getContentText()).sha
+  }
+
+  const payload = {
+    message: commitMessage,
+    content: Utilities.base64Encode(Utilities.newBlob(jsonString, 'application/json').getBytes()),
+    branch: GITHUB_BRANCH,
+  }
+  if (sha) payload.sha = sha
+
+  const putResp = UrlFetchApp.fetch(apiUrl, {
+    method: 'put',
+    headers,
+    contentType: 'application/json',
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true,
+  })
+
+  const code = putResp.getResponseCode()
+  if (code !== 200 && code !== 201) {
+    throw new Error('推送 GitHub 失敗（HTTP ' + code + '）：' + putResp.getContentText())
+  }
+  Logger.log('已同步到 GitHub：' + path)
+}
+
+function exportResponsesToGitHub() {
+  let formId = PropertiesService.getScriptProperties().getProperty('FORM_ID')
+  if (!formId) {
+    formId = findFormIdByTitle_()
+    PropertiesService.getScriptProperties().setProperty('FORM_ID', formId)
+  }
+
+  const form = FormApp.openById(formId)
+  const formResponses = form.getResponses()
+
+  const responses = formResponses.map((fr) => ({
+    timestamp: fr.getTimestamp().toISOString(),
+    answers: fr.getItemResponses().map((ir) => {
+      const resp = ir.getResponse()
+      return Array.isArray(resp) ? resp.join('; ') : String(resp)
+    }),
+  }))
+
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    responseCount: responses.length,
+    responses,
+  }
+
+  const now = new Date()
+  const mm = String(now.getMonth() + 1).padStart(2, '0')
+  const dd = String(now.getDate()).padStart(2, '0')
+  const commitMessage = mm + dd + '_同步易用性測試原始回覆'
+
+  pushJsonToGithub_(GITHUB_DATA_PATH, JSON.stringify(payload, null, 2), commitMessage)
+}
+
+function installDailySync() {
+  const formId = findFormIdByTitle_()
+  PropertiesService.getScriptProperties().setProperty('FORM_ID', formId)
+
+  ScriptApp.getProjectTriggers().forEach((t) => {
+    if (t.getHandlerFunction() === 'exportResponsesToGitHub') ScriptApp.deleteTrigger(t)
+  })
+
+  ScriptApp.newTrigger('exportResponsesToGitHub').timeBased().everyDays(1).atHour(6).create()
+
+  Logger.log('設定完成，FORM_ID=' + formId + '，每天約台北時間早上 6 點會自動同步一次')
+
+  exportResponsesToGitHub()
+  Logger.log('已立刻手動跑過一次同步，去 GitHub 檢查 ' + GITHUB_DATA_PATH + ' 是否出現')
 }
