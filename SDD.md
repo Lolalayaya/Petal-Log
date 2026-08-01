@@ -176,7 +176,7 @@ Pental-Log/
 | `resetAllData()` | 清空所有紀錄與設定 |
 | `refreshFromStorage()` | （v1.11）重新從 `storage.js` 讀取並更新 state；供 `useCloudSync` 在背景同步寫入 localStorage 後呼叫，觸發畫面重新渲染 |
 
-**關鍵行為 — 自動填滿後續天數**：當使用者記錄「新一次經期的第一天」（前一天沒有紀錄）且 `settings.autoFillSubsequentDays` 為真時，會依平均經期天數自動建立後續數天的紀錄，減少重複操作。
+**關鍵行為 — 自動填滿後續天數**：當使用者記錄「新一次經期的第一天」（前一天沒有紀錄）且 `settings.autoFillSubsequentDays` 為真時，會依平均經期天數自動建立後續數天的紀錄，減少重複操作；這些天數預設不帶入症狀，只有 `settings.autoCopySymptomsToGapDays` 也為真時才會把當次記錄的症狀一併複製過去。
 
 ### 6.3 `storage.js`（本機持久化層）
 
@@ -246,8 +246,8 @@ Pental-Log/
   id: string          // 產生規則：`${date}-${Date.now()}` 或含 index 後綴
   date: string         // 'yyyy-MM-dd'
   flow: 'light' | 'medium' | 'heavy' | 'unknown'  // 'unknown'（v1.13）：當天有出血但不確定/不記得經量；`estimateSubsequentFlow` 遇到 'unknown' 會直接把後續估算天數也回傳 'unknown'（無法從「不知道」推算遞減趨勢），不特別當作例外處理
-  symptoms: string[]   // 伴隨症狀代碼陣列（內建代碼見 `src/utils/symptoms.js`，或自訂症狀的 `custom-<timestamp>` id）；預設 []，自動填滿產生的後續天數不帶入首日症狀
-  symptomNote: string  // 「其他」欄位使用者自行輸入的自由文字；預設 ''，同樣只有首日會帶入
+  symptoms: string[]   // 伴隨症狀代碼陣列（內建代碼見 `src/utils/symptoms.js`，或自訂症狀的 `custom-<timestamp>` id）；預設 []，自動填滿產生的後續天數預設不帶入首日症狀，設定 `autoCopySymptomsToGapDays` 開啟後才會複製
+  symptomNote: string  // 「其他」欄位使用者自行輸入的自由文字；預設 ''，是否隨 symptoms 一起複製到自動填滿天數同樣由 `autoCopySymptomsToGapDays` 控制
   updatedAt: string    // （v1.11）ISO 時間戳，每次 add/update/delete 都會重新蓋章；未啟用雲端同步也會寫入，供將來啟用時直接使用，無需遷移
   deletedAt: string | null  // （v1.11）軟刪除時間戳；`storage.getRecords()` 會過濾掉 deletedAt 不為 null 的列，只有同步層透過 `getRecordsIncludingDeleted()` 才看得到
 }
@@ -260,6 +260,7 @@ Pental-Log/
   avgPeriodLength: number           // 平均經期天數（預設 5）
   avgCycleLength: number            // 平均週期天數（預設 28）
   autoFillSubsequentDays: boolean   // 記錄首日時是否自動填滿後續天數（預設 true）
+  autoCopySymptomsToGapDays: boolean // 自動填滿的空缺天數是否連同症狀一併複製（預設 false，僅在 autoFillSubsequentDays 為真時有作用）
   onboardingCompleted: boolean      // 是否已完成引導（預設 false）
   showOvulationPrediction: boolean  // 是否顯示排卵日/易孕期預測（預設 true）
   showMenstrualPhase: boolean       // 月曆是否標示月經期顏色（預設 false）

@@ -199,6 +199,17 @@ export function SettingsPanel({
           />
         </label>
 
+        {settings.autoFillSubsequentDays && (
+          <label className={styles.row}>
+            <span>空缺天數也複製當天的症狀</span>
+            <input
+              type="checkbox"
+              checked={settings.autoCopySymptomsToGapDays}
+              onChange={(e) => onUpdateSettings({ autoCopySymptomsToGapDays: e.target.checked })}
+            />
+          </label>
+        )}
+
         <label className={styles.row}>
           <span>顯示排卵日與易孕期預測</span>
           <input

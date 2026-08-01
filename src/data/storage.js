@@ -6,6 +6,7 @@ const DEFAULT_SETTINGS = {
   avgPeriodLength: 5,
   avgCycleLength: 28,
   autoFillSubsequentDays: true,
+  autoCopySymptomsToGapDays: false,
   onboardingCompleted: false,
   showOvulationPrediction: true,
   showMenstrualPhase: false,

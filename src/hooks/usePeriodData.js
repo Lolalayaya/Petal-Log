@@ -80,8 +80,8 @@ export function usePeriodData() {
               date: d,
               flow: estimateSubsequentFlow(cycleStartFlow, i, totalLength),
               isEstimated: false,
-              symptoms: [],
-              symptomNote: '',
+              symptoms: settings.autoCopySymptomsToGapDays ? symptoms : [],
+              symptomNote: settings.autoCopySymptomsToGapDays ? symptomNote : '',
             })
           }
           gapRecords.push({ id: recordId, date, flow, symptoms, symptomNote, isEstimated: false })
@@ -103,8 +103,8 @@ export function usePeriodData() {
               date: d,
               flow: estimateSubsequentFlow(flow, i, totalLength),
               isEstimated: false,
-              symptoms: [],
-              symptomNote: '',
+              symptoms: settings.autoCopySymptomsToGapDays ? symptoms : [],
+              symptomNote: settings.autoCopySymptomsToGapDays ? symptomNote : '',
             })
           }
           setRecords(addRecordsToStorage(gapRecords))
